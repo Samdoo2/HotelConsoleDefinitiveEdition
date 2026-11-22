@@ -36,6 +36,8 @@ string leerContrasena() {
     return clave;
 }
 
+
+
 int main() {
     try {
         inicializarArchivoUsuarios();
