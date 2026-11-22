@@ -1,10 +1,10 @@
 #include <iostream>
 #include <string>
 #include <exception>
-#include <conio.h> // Para ocultar la contrasena (Windows)
+#include <conio.h> 
 
 
-// Funciones de gestion de usuarios
+
 #include "header/usuario.h"
 #include "header/menu.h"
 #include "header/gestionUsuarios.h"
@@ -16,8 +16,11 @@
 #include "header/gestionFacturas.h"
 
 using namespace std;
-
-// Lee la contrasena mostrando asteriscos.
+/**
+ *  @brief Para mantener la privacidad del usuario la contraseña se muestra como asteriscos
+ *  
+ *  @return La contraseña como un string
+ */
 string leerContrasena() {
     string clave;
     int tecla;
@@ -58,7 +61,10 @@ int main() {
         if (!getline(cin, nombre)) return 0;
         cout << "Contrasena: ";
         string clave = leerContrasena();
-
+        /* para validar el inicio de sesion el usuario 
+         * empieza sin credenciales, si el inicio de sesion es correcto
+         * se le asignan las credenciales que se capturaron (nombre y contrasena)
+        */
         Usuario* usuario = 0;
         try {
             usuario = iniciarSesion(nombre, clave);
@@ -68,7 +74,7 @@ int main() {
         }
         if (usuario != 0) {
             menuPrincipal(*usuario);
-            delete usuario;
+            delete usuario; //al momento de cerrar sesion borra el usuario para liberar memoria
             return 0;
         }
     }
