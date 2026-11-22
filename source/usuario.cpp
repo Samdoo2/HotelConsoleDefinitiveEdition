@@ -28,6 +28,8 @@ void Usuario::cambiarNombre(string nuevo) {
     nombreUsuario = nuevo;
 }
 
+
+// Getters
 string Usuario::getNombreUsuario() const { return nombreUsuario; }
 string Usuario::getContra() const { return contrasena; }
 string Usuario::getRol() const { return rol; }

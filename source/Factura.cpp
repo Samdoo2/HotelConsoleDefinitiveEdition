@@ -15,6 +15,8 @@ impuestos(0), totalPagar(0), estadoPago("Pendiente") {
     impuestos = (valorNoches + subtotalServicios) * tasaImpuesto;
     totalPagar = valorNoches + subtotalServicios + impuestos;
 }
+
+// Getters
 string Factura::getCodigo() const { return codigo; }
 string Factura::getCodigoReserva() const { return codigoReserva; }
 string Factura::getFechaEmision() const { return fechaEmision; }

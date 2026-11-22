@@ -1,0 +1,3628 @@
+﻿========================================
+ARCHIVO: CMakeLists.txt
+========================================
+cmake_minimum_required(VERSION 3.12)
+project(HotelConsole VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "source/*.cpp")
+add_executable(HotelConsole main.cpp ${SOURCES})
+target_include_directories(HotelConsole PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/header")
+
+target_compile_definitions(HotelConsole PRIVATE
+    HOTEL_PROJECT_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+
+========================================
+ARCHIVO: CMakePresets.json
+========================================
+{
+  "version": 8,
+  "configurePresets": [
+    {
+      "name": "msvc-x64-debug",
+      "displayName": "MSVC x64 Debug (Visual Studio)",
+      "description": "Compilador nativo de Visual Studio",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      }
+    },
+    {
+      "name": "GCC 15.2.0 x86_64-w64-mingw32 (ucrt64)",
+      "displayName": "GCC 15.2.0 x86_64-w64-mingw32 (ucrt64)",
+      "description": "Using compilers: C = C:\\msys64\\ucrt64\\bin\\gcc.exe, CXX = C:\\msys64\\ucrt64\\bin\\g++.exe",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ]
+}
+
+========================================
+ARCHIVO: main.cpp
+========================================
+#include <iostream>
+#include <string>
+#include <exception>
+#include <conio.h> // Para ocultar la contrasena (Windows)
+
+
+// Funciones de gestion de usuarios
+#include "header/usuario.h"
+#include "header/menu.h"
+#include "header/gestionUsuarios.h"
+#include "header/gestionHuespedes.h"
+#include "header/gestionHabitaciones.h"
+#include "header/gestionReservas.h"
+#include "header/gestionServicios.h"
+#include "header/gestionConsumos.h"
+#include "header/gestionFacturas.h"
+
+using namespace std;
+
+
+/***
+* @file main.cpp
+* @brief Programa principal del sistema de hotel
+* 
+*
+*
+*
+*/
+
+/**
+ * @brief muestra la contraseÃ±a en asteriscos
+ * @return retorna la contraseÃ±a como string
+ */
+
+string leerContrasena() {
+    string clave;
+    int tecla;
+    while ((tecla = _getch()) != 13) {      // 13 = Enter
+        if (tecla == 8) {                   // 8 = Retroceso
+            if (!clave.empty()) {
+                clave.erase(clave.size() - 1);
+                cout << "\b \b";
+            }
+        } else if (tecla >= 32 && tecla <= 126) {
+            clave += (char)tecla;
+            cout << '*';
+        }
+    }
+    cout << endl;
+    return clave;
+}
+
+
+
+int main() {
+    try {
+        inicializarArchivoUsuarios();
+        inicializarArchivoHabitaciones();
+        inicializarArchivoHuespedes();
+        inicializarArchivoServicios();
+        inicializarArchivoReservas();
+        inicializarArchivoConsumos();
+        inicializarArchivoFacturas();
+    } catch (const exception& e) {
+        cout << "Error al preparar los archivos: " << e.what() << endl;
+        return 1;
+    }
+
+    cout << "--- SISTEMA HOTEL CONSOLE ---" << endl;
+    int intentos = 0;
+    while (intentos < 3) {
+        string nombre;
+        cout << "Usuario: ";
+        if (!getline(cin, nombre)) return 0;
+        cout << "Contrasena: ";
+        string clave = leerContrasena();
+
+        Usuario* usuario = 0;
+        try {
+            usuario = iniciarSesion(nombre, clave);
+        } catch (const exception& e) {
+            cout << e.what() << "\n" << endl;
+            intentos++;
+        }
+        if (usuario != 0) {
+            menuPrincipal(*usuario);
+            delete usuario;
+            return 0;
+        }
+    }
+    cout << "Demasiados intentos fallidos. Programa terminado." << endl;
+    return 1;
+}
+
+
+========================================
+ARCHIVO: header\administrador.h
+========================================
+#pragma once
+#include "usuario.h"
+using namespace std;
+
+/***
+* @file administrador.h
+* @brief Clase Administrador que hereda de Usuario
+* 
+*
+*
+*/
+
+class Administrador : public Usuario {
+public:
+    Administrador(string nombreUser, string contra);
+
+	bool tienePermiso(string operacion) const override;  ///< Verifica si el administrador tiene permiso
+	string descripcionRol() const override; ///< Retorna la descripciÃ³n del rol del administrador
+	string serializar() const override; ///< simplemente muestra el nombre de usuario, la contraseÃ±a y el rol "Administrador"
+};
+
+
+========================================
+ARCHIVO: header\Alimentacion.h
+========================================
+#pragma once
+
+#include "Servicio.h"
+#include <string>
+using namespace std;
+
+// Servicio de alimentacion: se cobra por plato.
+class Alimentacion : public Servicio {
+private:
+    string tipoComida;
+
+public:
+    Alimentacion();
+    Alimentacion(string codigo, string nombre, string descripcion,
+                 double precio, bool activo, string tipoComida);
+
+    string getTipoComida() const;
+    string getUnidadCobro() const;
+
+    string getTipoServicio() const override;
+    string describir() const override;
+    double calcularCosto(int cantidad) const override;
+    string serializar() const override;
+    void deserializar(const string& linea);
+};
+
+
+========================================
+ARCHIVO: header\ConsumoServicio.h
+========================================
+#pragma once
+#include <string>
+using namespace std;
+
+// Un servicio usado durante una estadia. Siempre pertenece a una reserva.
+class ConsumoServicio {
+protected:
+    string codigo;
+    string codigoReserva;
+    string codigoServicio;
+    int cantidad;
+    double precioAplicado;   // precio por unidad con el que se cobro
+    double valorTotal;       // precioAplicado * cantidad
+
+public:
+    ConsumoServicio();
+    ConsumoServicio(string codigo, string codigoReserva, string codigoServicio,int cantidad, double precioAplicado);
+    string getCodigo() const;
+    string getCodigoReserva() const;
+    string getCodigoServicio() const;
+    int getCantidad() const;
+    double getPrecioAplicado() const;
+    double getValorTotal() const;
+    void actualizarCantidad(int nuevaCantidad);
+
+    string serializar() const;
+    static ConsumoServicio deserializar(const string& linea);
+};
+
+
+========================================
+ARCHIVO: header\Enumeraciones.h
+========================================
+#pragma once
+#include <string>
+using namespace std;
+
+enum class Rol { Administrador, Recepcionista };
+enum class TipoHabitacion { Sencilla, Doble, Suite, Familiar, Otra };
+enum class EstadoHabitacion { Disponible, Mantenimiento, FueraDeServicio };
+enum class EstadoReserva { Pendiente, Confirmada, Cancelada };
+enum class EstadoPago { Pendiente, Pagada };
+
+Rol convertirRol(string texto);
+TipoHabitacion convertirTipoHabitacion(string texto);
+EstadoHabitacion convertirEstadoHabitacion(string texto);
+EstadoReserva convertirEstadoReserva(string texto);
+EstadoPago convertirEstadoPago(string texto);
+
+
+========================================
+ARCHIVO: header\Factura.h
+========================================
+#pragma once
+#include <string>
+#include "Enumeraciones.h"
+using namespace std;
+
+class Factura {
+protected:
+    string codigo;
+    string codigoReserva;
+    string fechaEmision;
+    double valorNoches;
+    double subtotalServicios;
+    double impuestos;
+    double totalPagar;
+    string estadoPago;
+public:
+    Factura();
+    Factura(string codigo, string codigoReserva, string fechaEmision,
+            double valorNoches, double subtotalServicios, double tasaImpuesto = 0);
+    string getCodigo() const;
+    string getCodigoReserva() const;
+    string getFechaEmision() const;
+    double getValorNoches() const;
+    double getSubtotalServicios() const;
+    double getImpuestos() const;
+    double getTotalPagar() const;
+    string getEstadoPago() const;
+    EstadoPago getEstadoPagoEnum() const;
+    void registrarPago();
+    void setEstadoPago(string nuevoEstado);
+
+    string serializar() const;
+    static Factura deserializar(const string& linea);
+};
+
+
+========================================
+ARCHIVO: header\Fecha.h
+========================================
+#pragma once
+#include <string>
+using namespace std;
+
+class Fecha {
+private:
+    static bool esBisiesto(int anio);
+    static int diasDelMes(int mes, int anio);
+    static int contarDias(string fecha);
+
+public:
+    static string hoy();                       // fecha de hoy en formato AAAA-MM-DD
+    static bool esValida(string fecha);
+    static int diasEntre(string fechaEntrada, string fechaSalida);
+    static bool seSuperponen(string entrada1, string salida1, string entrada2, string salida2);
+};
+
+
+========================================
+ARCHIVO: header\gestionConsumos.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+#include "ConsumoServicio.h"
+using namespace std;
+
+void inicializarArchivoConsumos();
+vector<ConsumoServicio> cargarConsumos();
+double subtotalServicios(const string& codigoReserva);      // suma de los consumos de una reserva
+void mostrarConsumosDeReserva(const string& codigoReserva);
+void menuConsumos();
+
+
+========================================
+ARCHIVO: header\gestionFacturas.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+#include "Factura.h"
+using namespace std;
+
+void inicializarArchivoFacturas();
+vector<Factura> cargarFacturas();
+bool reservaTieneFactura(const string& codigoReserva);
+void menuFacturacion();
+
+
+========================================
+ARCHIVO: header\gestionHabitaciones.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+#include "habitacion.h"
+#include "usuario.h"
+using namespace std;
+
+void inicializarArchivoHabitaciones();
+vector<Habitacion> cargarHabitaciones();
+void guardarHabitaciones(const vector<Habitacion>& lista);
+// El texto "estado" es lo que se muestra al final (Disponible, Ocupada, Mantenimiento...).
+void mostrarHabitacion(const Habitacion& h, const string& estado);
+void menuHabitaciones(const Usuario& usuario);
+
+
+========================================
+ARCHIVO: header\gestionHuespedes.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+#include "huesped.h"
+using namespace std;
+
+void inicializarArchivoHuespedes();
+vector<Huesped> cargarHuespedes();
+void guardarHuespedes(const vector<Huesped>& lista);
+bool existeHuesped(const string& documento);
+void registrarHuesped(const Huesped& nuevo);  // rechaza documentos duplicados
+void menuHuespedes();
+
+
+========================================
+ARCHIVO: header\gestionReportes.h
+========================================
+#pragma once
+#include "usuario.h"
+
+// Genera los reportes .txt en la carpeta Persistencia (solo administrador).
+void menuReportes(const Usuario& usuario);
+
+
+========================================
+ARCHIVO: header\gestionReservas.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+#include "habitacion.h"
+#include "reserva.h"
+using namespace std;
+
+void inicializarArchivoReservas();
+vector<Reserva> cargarReservas();
+void guardarReservas(const vector<Reserva>& lista);
+Reserva obtenerReserva(const string& codigo);   // lanza error si no existe
+
+// Disponibilidad
+bool habitacionLibre(const string& codigoHabitacion, const string& entrada,
+                     const string& salida, const vector<Reserva>& reservas,
+                     const string& ignorarCodigo);
+vector<Habitacion> buscarHabitacionesLibres(const string& entrada, const string& salida,
+                                            int personas, const string& tipo);
+// "Disponible" = operativa y libre hoy. Si no, "Ocupada", "Mantenimiento" o "Fuera de servicio".
+string estadoActualHabitacion(const Habitacion& h, const vector<Reserva>& reservas);
+
+void mostrarResumenReserva(const Reserva& r);
+void consultarDisponibilidadMenu();
+void menuReservas();
+
+
+========================================
+ARCHIVO: header\gestionServicios.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+#include "Servicio.h"
+#include "usuario.h"
+using namespace std;
+
+void inicializarArchivoServicios();
+vector<Servicio*> cargarServicios();           // el que llama debe liberar con liberarServicios
+void liberarServicios(vector<Servicio*>& lista);
+void mostrarServiciosActivos();
+// Calcula el costo de un servicio activo (usa el calcularCosto de cada clase hija).
+double calcularCostoServicio(const string& codigoServicio, int cantidad);
+void menuServicios(const Usuario& usuario);
+
+
+========================================
+ARCHIVO: header\gestionUsuarios.h
+========================================
+#pragma once
+#include <string>
+#include "usuario.h"
+using namespace std;
+
+// Crea usuarios.csv con el administrador inicial si no existe o esta vacio.
+void inicializarArchivoUsuarios();
+
+// Devuelve un Usuario nuevo (el que llama debe hacer delete) o lanza excepcion.
+Usuario* iniciarSesion(const string& nombre, const string& clave);
+
+// Menu de gestion de usuarios (solo administrador).
+void menuUsuarios(const Usuario& actual);
+
+
+========================================
+ARCHIVO: header\habitacion.h
+========================================
+#pragma once
+#include <string>
+#include "Enumeraciones.h"
+using namespace std;
+
+// Representa una habitacion fisica del hotel.
+class Habitacion {
+private:
+    string codigo;
+    TipoHabitacion tipo;
+    int capacidad;
+    double precioPorNoche;
+    EstadoHabitacion estado;
+
+public:
+    Habitacion();
+    Habitacion(string codigo, TipoHabitacion tipo, int capacidad,
+              double precioPorNoche,
+              EstadoHabitacion estado = EstadoHabitacion::Disponible);
+
+    string getCodigo() const;
+    TipoHabitacion getTipo() const;
+    int getCapacidad() const;
+    double getPrecioPorNoche() const;
+    EstadoHabitacion getEstado() const;
+
+    // Validaciones para impedir habitaciones con datos incorrectos.
+    void actualizarDatos(TipoHabitacion tipo, int capacidad, double precioPorNoche);
+    void cambiarEstado(EstadoHabitacion nuevoEstado);
+    bool estaOperativa() const;
+
+    // Convertir entre objeto y linea de texto para guardar en CSV.
+    string serializar() const;
+    static Habitacion deserializar(const string& linea);
+    static string nombreTipo(TipoHabitacion tipo);
+    static string nombreEstado(EstadoHabitacion estado);
+};
+
+
+========================================
+ARCHIVO: header\huesped.h
+========================================
+#pragma once
+#include <string>
+using namespace std;
+
+class Huesped {
+private:
+    string documento, telefono, nombre, correo;
+public:
+    Huesped();
+    // Orden fijo: documento, nombre, telefono, correo.
+    Huesped(string documento, string nombre, string telefono, string correo);
+    ~Huesped();
+    void validar() const;
+    string serializar() const;
+    void deserializar(string linea);
+    string getDocumento() const;
+    string getNombre() const;
+    string getTelefono() const;
+    string getCorreo() const;
+    void actualizarDatos(string nuevoNombre, string nuevoTelefono, string nuevoCorreo);
+    // Historiales se agregaran cuando Reserva y Consumo esten conectados.
+};
+
+
+========================================
+ARCHIVO: header\Lavanderia.h
+========================================
+#pragma once
+
+#include "Servicio.h"
+#include <string>
+using namespace std;
+
+// Servicio de lavanderia: se cobra por prenda y, si es urgente, con recargo por prenda.
+class Lavanderia : public Servicio {
+protected:
+    double recargoUrgente;
+    bool urgente;
+
+public:
+    Lavanderia();
+    Lavanderia(string codigo, string nombre, string desc, double precio,
+               bool activo, double recargoUrgente, bool urgente);
+
+    double getRecargoUrgente() const;
+    bool isUrgente() const;
+    string getCategoria() const;
+
+    string getTipoServicio() const override;
+    double calcularCosto(int cantidad) const override;
+    string describir() const override;
+    string serializar() const override;
+    void deserializar(const string& linea);
+};
+
+
+========================================
+ARCHIVO: header\menu.h
+========================================
+#pragma once
+#include "usuario.h"
+
+void menuPrincipal(const Usuario& usuario);
+
+
+========================================
+ARCHIVO: header\Parqueadero.h
+========================================
+#pragma once
+
+#include "Servicio.h"
+#include <string>
+using namespace std;
+
+// Servicio de parqueadero: se cobra por dia.
+class Parqueadero : public Servicio {
+private:
+    string tipoVehiculo;
+
+public:
+    Parqueadero();
+    Parqueadero(string codigo, string nombre, string descripcion,
+                double precio, bool activo, string tipoVehiculo);
+
+    string getTipoVehiculo() const;
+    string getUnidadCobro() const;
+
+    string getTipoServicio() const override;
+    string describir() const override;
+    double calcularCosto(int cantidad) const override;
+    string serializar() const override;
+    void deserializar(const string& linea);
+};
+
+
+========================================
+ARCHIVO: header\recepcionista.h
+========================================
+#pragma once
+#include "usuario.h"
+using namespace std;
+
+class Recepcionista : public Usuario {
+private:
+    string turno;
+
+public:
+    Recepcionista(string nombreUser, string contra, string turno);
+
+    bool tienePermiso(string operacion) const override;
+    string descripcionRol() const override;
+    string serializar() const override;
+    string getDatoExtra() const override;
+    void setDatoExtra(string dato) override;
+
+    string getTurno() const;
+};
+
+
+========================================
+ARCHIVO: header\reserva.h
+========================================
+#pragma once
+#include <string>
+#include "Enumeraciones.h"
+using namespace std;
+
+// Una reserva relaciona UN huesped con UNA habitacion en un rango de fechas.
+class Reserva {
+private:
+    string codigo;
+    string documentoHuesped;
+    string codigoHabitacion;
+    string fechaEntrada;
+    string fechaSalida;
+    int personas;
+    double tarifaPorNoche;
+    EstadoReserva estado;
+
+public:
+    Reserva();
+    Reserva(string codigo, string documentoHuesped, string codigoHabitacion,
+            string fechaEntrada, string fechaSalida, int personas,
+            double tarifaPorNoche, EstadoReserva estado = EstadoReserva::Confirmada);
+
+    string getCodigo() const;
+    string getDocumentoHuesped() const;
+    string getCodigoHabitacion() const;
+    string getFechaEntrada() const;
+    string getFechaSalida() const;
+    int getPersonas() const;
+    double getTarifaPorNoche() const;
+    EstadoReserva getEstado() const;
+    bool estaActiva() const;              // activa = no cancelada
+
+    int calcularNoches() const;
+    double calcularValorEstimado() const; // noches * tarifa
+    bool seSuperponeCon(const Reserva& otra) const;
+    void cambiarFechas(string nuevaEntrada, string nuevaSalida);
+    void cambiarPersonas(int nuevasPersonas);
+    void cancelar();
+    void validar() const;
+
+    string serializar() const;
+    static Reserva deserializar(const string& linea);
+    static string nombreEstado(EstadoReserva estado);
+};
+
+
+========================================
+ARCHIVO: header\Servicio.h
+========================================
+#pragma once
+
+#include <string>
+using namespace std;
+
+// Clase base abstracta de los servicios adicionales del hotel.
+// Sus hijas (Alimentacion, Lavanderia, Parqueadero) calculan el costo de forma diferente.
+class Servicio {
+protected:
+    string codigo;
+    string nombre;
+    string desc;
+    double precio;
+    bool activo;
+
+public:
+    Servicio();
+    Servicio(string codigo, string nombre, string desc, double precio, bool activo);
+    virtual ~Servicio() = default;
+
+    virtual double calcularCosto(int cantidad) const = 0;
+    virtual string describir() const = 0;
+    virtual string getTipoServicio() const = 0;
+    virtual string serializar() const;
+
+    void activar();
+    void desactivar();
+    void actualizarDatos(string nuevoNombre, string nuevaDesc, double nuevoPrecio);
+    void validar() const;
+
+    string getCodigo() const;
+    string getNombre() const;
+    string getDesc() const;
+    double getPrecio() const;
+    bool isActivo() const;
+};
+
+
+========================================
+ARCHIVO: header\usuario.h
+========================================
+#pragma once
+#include <string>
+using namespace std;
+
+// Clase base abstracta. Cada rol decide sus permisos y como se guarda
+class Usuario {
+protected:
+    string nombreUsuario;
+    string contrasena;
+    string rol;
+
+public:
+    Usuario(string nombreUsuario, string contrasena, string rol);
+    virtual ~Usuario() {}
+
+    // Metodos polimorficos (cada hijo los sobrescribe)
+    virtual bool tienePermiso(string operacion) const = 0;
+    virtual string descripcionRol() const = 0;
+    virtual string serializar() const = 0;
+
+    virtual string getDatoExtra() const;      // Para el turno en recepcionista
+    virtual void setDatoExtra(string dato);   
+
+	bool autenticar(string clave) const; ///< Verifica si la contraseÃ±a ingresada coincide con la del usuario
+    void cambiarContrasena(string nueva); 
+    void cambiarNombre(string nuevo);
+
+
+	// Getters
+    string getNombreUsuario() const;
+    string getContra() const;
+    string getRol() const;
+};
+
+
+========================================
+ARCHIVO: header\utilidades.h
+========================================
+#pragma once
+#include <string>
+#include <vector>
+using namespace std;
+
+// Validacion y texto
+bool textoValido(const string& texto);
+string aMinusculas(string texto);
+string dinero(double valor);                              // 150000.0 -> "150000"
+string generarCodigo(const string& prefijo, int numero);  // ("R", 7) -> "R007"
+
+// Archivos
+string rutaArchivo(const string& nombre);
+bool existeArchivo(const string& ruta);
+vector<string> leerLineas(const string& ruta);
+void escribirLineas(const string& ruta, const vector<string>& lineas);
+vector<string> dividirCampos(const string& linea);
+
+// Entrada por consola (lanzan excepcion si el dato es incorrecto)
+int leerOpcion();
+string leerTexto(const string& mensaje);
+string leerTextoObligatorio(const string& mensaje);
+int leerEntero(const string& mensaje, int minimo, int maximo);
+double leerDecimal(const string& mensaje, double minimoExclusivo);
+bool confirmar(const string& mensaje);
+
+
+========================================
+ARCHIVO: source\administrador.cpp
+========================================
+#include "../header/administrador.h"
+using namespace std;
+
+
+/***
+* @file administrador.cpp
+* @brief ImplementaciÃ³n de la clase Administrador
+*
+*
+*
+*/
+
+Administrador::Administrador(string nombreUser, string contra)
+    : Usuario(nombreUser, contra, "Administrador") {}
+
+// El administrador puede hacer todo en el programa
+bool Administrador::tienePermiso(string operacion) const {
+    return true;
+}
+
+
+string Administrador::descripcionRol() const {
+    return "Administrador";
+}
+
+string Administrador::serializar() const {
+    return nombreUsuario + "," + contrasena + ",Administrador";
+}
+
+
+========================================
+ARCHIVO: source\Alimentacion.cpp
+========================================
+#include "../header/Alimentacion.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+#include <sstream>
+
+using namespace std;
+
+Alimentacion::Alimentacion() : Servicio(), tipoComida("") {}
+
+Alimentacion::Alimentacion(string codigo, string nombre, string descripcion,
+                           double precio, bool activo, string tipoComida)
+    : Servicio(codigo, nombre, descripcion, precio, activo), tipoComida(tipoComida) {
+    if (tipoComida.empty() || tipoComida.find_first_of(",\r\n") != string::npos)
+        throw invalid_argument("El tipo de comida es obligatorio y no puede contener comas.");
+}
+
+string Alimentacion::getTipoComida() const { return tipoComida; }
+string Alimentacion::getUnidadCobro() const { return "plato"; }
+string Alimentacion::getTipoServicio() const { return "Alimentacion"; }
+
+string Alimentacion::describir() const {
+    return "[" + codigo + "] " + nombre + " (" + tipoComida + ") - $" +
+           dinero(precio) + " por " + getUnidadCobro();
+}
+
+// Costo = precio del plato por la cantidad de platos.
+double Alimentacion::calcularCosto(int cantidad) const {
+    if (cantidad <= 0) throw invalid_argument("La cantidad debe ser mayor a cero.");
+    if (!activo) throw invalid_argument("El servicio de alimentacion esta inactivo.");
+    return precio * cantidad;
+}
+
+string Alimentacion::serializar() const {
+    return Servicio::serializar() + "," + tipoComida;
+}
+
+void Alimentacion::deserializar(const string& linea) {
+    stringstream ss(linea);
+    string tipo, cod, nom, d, precStr, actStr, comida;
+    if (!getline(ss, tipo, ',') || !getline(ss, cod, ',') ||
+        !getline(ss, nom, ',') || !getline(ss, d, ',') ||
+        !getline(ss, precStr, ',') || !getline(ss, actStr, ',') ||
+        !getline(ss, comida)) {
+        throw invalid_argument("Formato CSV invalido para Alimentacion.");
+    }
+    if (!comida.empty() && comida.back() == '\r') comida.pop_back();
+    if (tipo != "Alimentacion")
+        throw invalid_argument("La linea no corresponde a un servicio de Alimentacion.");
+
+    Alimentacion temp(cod, nom, d, stod(precStr), actStr == "1", comida);
+    *this = temp;
+}
+
+
+========================================
+ARCHIVO: source\ConsumoServicio.cpp
+========================================
+#include "../header/ConsumoServicio.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+#include <vector>
+
+ConsumoServicio::ConsumoServicio() : cantidad(0), precioAplicado(0), valorTotal(0) {}
+ConsumoServicio::ConsumoServicio(string codigo, string codigoReserva, string codigoServicio,int cantidad, double precioAplicado): codigo(codigo), codigoReserva(codigoReserva), codigoServicio(codigoServicio),
+cantidad(0), precioAplicado(precioAplicado), valorTotal(0) {
+if (codigo.empty() || codigoReserva.empty() || codigoServicio.empty() || precioAplicado <= 0)
+   throw invalid_argument("Datos de consumo de servicio invalidos.");
+    actualizarCantidad(cantidad);
+}
+string ConsumoServicio::getCodigo() const { return codigo; }
+string ConsumoServicio::getCodigoReserva() const { return codigoReserva; }
+string ConsumoServicio::getCodigoServicio() const { return codigoServicio; }
+int ConsumoServicio::getCantidad() const { return cantidad; }
+double ConsumoServicio::getPrecioAplicado() const { return precioAplicado; }
+double ConsumoServicio::getValorTotal() const { return valorTotal; }
+void ConsumoServicio::actualizarCantidad(int nuevaCantidad) {
+    if (nuevaCantidad <= 0) throw invalid_argument("La cantidad debe ser positiva.");
+    cantidad = nuevaCantidad;
+    valorTotal = precioAplicado * cantidad;
+}
+
+// Formato del CSV: codigo,codigoReserva,codigoServicio,cantidad,precioAplicado
+string ConsumoServicio::serializar() const {
+    return codigo + "," + codigoReserva + "," + codigoServicio + "," +
+           to_string(cantidad) + "," + to_string(precioAplicado);
+}
+
+ConsumoServicio ConsumoServicio::deserializar(const string& linea) {
+    vector<string> c = dividirCampos(linea);
+    if (c.size() != 5)
+        throw invalid_argument("La linea de consumo debe tener 5 campos.");
+    int cantidad = 0;
+    double precio = 0;
+    try {
+        cantidad = stoi(c[3]);
+        precio = stod(c[4]);
+    } catch (...) {
+        throw invalid_argument("Cantidad o precio del consumo con formato incorrecto.");
+    }
+    return ConsumoServicio(c[0], c[1], c[2], cantidad, precio);
+}
+
+
+========================================
+ARCHIVO: source\Enumeraciones.cpp
+========================================
+#include "../header/Enumeraciones.h"
+#include <stdexcept>
+
+Rol convertirRol(string texto) {
+    if (texto == "Administrador" || texto == "Admin") return Rol::Administrador;
+    if (texto == "Recepcionista") return Rol::Recepcionista;
+    throw invalid_argument("Rol de usuario invalido.");
+}
+TipoHabitacion convertirTipoHabitacion(string texto) {
+    if (texto == "Sencilla") return TipoHabitacion::Sencilla;
+    if (texto == "Doble") return TipoHabitacion::Doble;
+    if (texto == "Suite") return TipoHabitacion::Suite;
+    if (texto == "Familiar") return TipoHabitacion::Familiar;
+    return TipoHabitacion::Otra; // Se permite definir otros tipos de habitacion.
+}
+EstadoHabitacion convertirEstadoHabitacion(string texto) {
+    if (texto == "Disponible") return EstadoHabitacion::Disponible;
+    if (texto == "Mantenimiento") return EstadoHabitacion::Mantenimiento;
+    if (texto == "Fuera de servicio") return EstadoHabitacion::FueraDeServicio;
+    throw invalid_argument("Estado de habitacion invalido.");
+}
+EstadoReserva convertirEstadoReserva(string texto) {
+    if (texto == "Pendiente") return EstadoReserva::Pendiente;
+    if (texto == "Confirmada") return EstadoReserva::Confirmada;
+    if (texto == "Cancelada") return EstadoReserva::Cancelada;
+    throw invalid_argument("Estado de reserva invalido.");
+}
+EstadoPago convertirEstadoPago(string texto) {
+    if (texto == "Pendiente") return EstadoPago::Pendiente;
+    if (texto == "Pagada") return EstadoPago::Pagada;
+    throw invalid_argument("Estado de pago invalido.");
+}
+
+
+========================================
+ARCHIVO: source\Factura.cpp
+========================================
+#include "../header/Factura.h"
+#include "../header/Fecha.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+#include <vector>
+using namespace std;
+Factura::Factura():valorNoches(0),subtotalServicios(0),impuestos(0),totalPagar(0),estadoPago("Pendiente") {}
+Factura::Factura(string codigo, string codigoReserva, string fechaEmision,double valorNoches, double subtotalServicios, double tasaImpuesto)
+:codigo(codigo), codigoReserva(codigoReserva), fechaEmision(fechaEmision),valorNoches(valorNoches),subtotalServicios(subtotalServicios),
+impuestos(0), totalPagar(0), estadoPago("Pendiente") {
+    if (codigo.empty() || codigoReserva.empty() || !Fecha::esValida(fechaEmision))
+     throw invalid_argument("Datos de factura invalidos.");
+    if (valorNoches < 0 || subtotalServicios < 0 || tasaImpuesto < 0 || tasaImpuesto > 1)
+        throw invalid_argument("Los valores de factura o la tasa de impuesto son invalidos.");
+    impuestos = (valorNoches + subtotalServicios) * tasaImpuesto;
+    totalPagar = valorNoches + subtotalServicios + impuestos;
+}
+
+// Getters
+string Factura::getCodigo() const { return codigo; }
+string Factura::getCodigoReserva() const { return codigoReserva; }
+string Factura::getFechaEmision() const { return fechaEmision; }
+double Factura::getValorNoches() const { return valorNoches; }
+double Factura::getSubtotalServicios() const { return subtotalServicios; }
+double Factura::getImpuestos() const { return impuestos; }
+double Factura::getTotalPagar() const { return totalPagar; }
+string Factura::getEstadoPago() const { return estadoPago; }
+EstadoPago Factura::getEstadoPagoEnum() const { return convertirEstadoPago(estadoPago); }
+void Factura::registrarPago() { estadoPago = "Pagada"; }
+void Factura::setEstadoPago(string nuevoEstado) {
+    convertirEstadoPago(nuevoEstado);
+    estadoPago = nuevoEstado;
+}
+
+// Formato del CSV: codigo,codigoReserva,fecha,valorNoches,subtotalServicios,impuestos,total,estadoPago
+string Factura::serializar() const {
+    return codigo + "," + codigoReserva + "," + fechaEmision + "," +
+           to_string(valorNoches) + "," + to_string(subtotalServicios) + "," +
+           to_string(impuestos) + "," + to_string(totalPagar) + "," + estadoPago;
+}
+
+Factura Factura::deserializar(const string& linea) {
+    vector<string> c = dividirCampos(linea);
+    if (c.size() != 8)
+        throw invalid_argument("La linea de factura debe tener 8 campos.");
+    if (c[0].empty() || c[1].empty() || !Fecha::esValida(c[2]))
+        throw invalid_argument("Datos de factura invalidos.");
+    Factura f;
+    try {
+        f.valorNoches = stod(c[3]);
+        f.subtotalServicios = stod(c[4]);
+        f.impuestos = stod(c[5]);
+        f.totalPagar = stod(c[6]);
+    } catch (...) {
+        throw invalid_argument("Valores de factura con formato incorrecto.");
+    }
+    convertirEstadoPago(c[7]); // lanza error si el estado no es valido
+    f.codigo = c[0];
+    f.codigoReserva = c[1];
+    f.fechaEmision = c[2];
+    f.estadoPago = c[7];
+    return f;
+}
+
+
+========================================
+ARCHIVO: source\Fecha.cpp
+========================================
+#include "Fecha.h"
+#include <ctime>
+#include <stdexcept>
+
+// Lee la fecha del computador y la devuelve como texto AAAA-MM-DD.
+string Fecha::hoy() {
+    time_t ahora = time(0);
+    tm* f = localtime(&ahora);
+    char texto[11];
+    strftime(texto, sizeof(texto), "%Y-%m-%d", f);
+    return string(texto);
+}
+
+bool Fecha::esBisiesto(int anio) {
+    if (anio % 400 == 0) return true;
+    if (anio % 100 == 0) return false;
+    if (anio % 4 == 0) return true;
+    return false;
+}
+
+int Fecha::diasDelMes(int mes, int anio) {
+    if (mes == 2) {
+        if (esBisiesto(anio)) return 29;
+        return 28;
+    }
+
+    if (mes == 4 || mes == 6 || mes == 9 || mes == 11) {
+    return 30;
+    }
+
+    return 31;
+}
+
+bool Fecha::esValida(string fecha) {
+    if (fecha.length() != 10) return false;
+    if (fecha[4] != '-' || fecha[7] != '-') return false;
+
+    for (int i = 0; i < 10; i++) {
+        if (i != 4 && i != 7) {
+            if (fecha[i] < '0' || fecha[i] > '9') return false;
+        }
+    }
+
+    int anio = stoi(fecha.substr(0, 4));
+    int mes = stoi(fecha.substr(5, 2));
+    int dia = stoi(fecha.substr(8, 2));
+
+    if (anio < 1) return false;
+    if (mes < 1 || mes > 12) return false;
+    if (dia < 1 || dia > diasDelMes(mes, anio)) return false;
+
+    return true;
+}
+
+int Fecha::contarDias(string fecha) {
+    int anio = stoi(fecha.substr(0, 4));
+    int mes = stoi(fecha.substr(5, 2));
+    int dia = stoi(fecha.substr(8, 2));
+
+    int total = dia;
+
+
+    for (int a = 1; a < anio; a++) {
+        total = total + 365;
+        if (esBisiesto(a)) total = total + 1;
+    }
+    for (int m = 1; m < mes; m++) {
+        total = total + diasDelMes(m, anio);
+    }
+
+    return total;
+}
+int Fecha::diasEntre(string fechaEntrada, string fechaSalida) {
+    if (!esValida(fechaEntrada) || !esValida(fechaSalida)) {
+        throw invalid_argument("La fecha no es valida.");
+    }
+
+    int noches = contarDias(fechaSalida) - contarDias(fechaEntrada);
+
+    if (noches <= 0) {
+        throw invalid_argument("La salida debe ser posterior a la entrada.");
+    }
+
+    return noches;
+}
+
+bool Fecha::seSuperponen(string entrada1, string salida1,string entrada2, string salida2) {
+    diasEntre(entrada1, salida1);
+    diasEntre(entrada2, salida2);
+
+    if (entrada1 < salida2 && entrada2 < salida1) {
+        return true;
+    }
+
+    return false;
+}
+
+
+========================================
+ARCHIVO: source\gestionConsumos.cpp
+========================================
+#include "../header/gestionConsumos.h"
+#include "../header/gestionReservas.h"
+#include "../header/gestionServicios.h"
+#include "../header/gestionFacturas.h"
+#include "../header/utilidades.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+static string rutaConsumos() { return rutaArchivo("consumos.csv"); }
+
+vector<ConsumoServicio> cargarConsumos() {
+    vector<string> lineas = leerLineas(rutaConsumos());
+    vector<ConsumoServicio> lista;
+    for (size_t i = 0; i < lineas.size(); i++) {
+        try {
+            ConsumoServicio c = ConsumoServicio::deserializar(lineas[i]);
+            for (size_t j = 0; j < lista.size(); j++)
+                if (lista[j].getCodigo() == c.getCodigo())
+                    throw invalid_argument("Codigo de consumo repetido.");
+            lista.push_back(c);
+        } catch (const exception& e) {
+            throw runtime_error("consumos.csv, linea " + to_string(i + 1) + ": " + e.what());
+        }
+    }
+    return lista;
+}
+
+static void guardarConsumos(const vector<ConsumoServicio>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i].serializar());
+    escribirLineas(rutaConsumos(), lineas);
+}
+
+void inicializarArchivoConsumos() {
+    if (!existeArchivo(rutaConsumos())) {
+        vector<string> vacio;
+        escribirLineas(rutaConsumos(), vacio);
+    }
+    cargarConsumos(); // valida el formato del archivo
+}
+
+double subtotalServicios(const string& codigoReserva) {
+    vector<ConsumoServicio> lista = cargarConsumos();
+    double total = 0;
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getCodigoReserva() == codigoReserva)
+            total = total + lista[i].getValorTotal();
+    return total;
+}
+
+static void mostrarConsumo(const ConsumoServicio& c) {
+    cout << c.getCodigo() << " | Reserva " << c.getCodigoReserva()
+         << " | Servicio " << c.getCodigoServicio()
+         << " | Cantidad " << c.getCantidad()
+         << " | $" << dinero(c.getPrecioAplicado()) << " c/u"
+         << " | Total $" << dinero(c.getValorTotal()) << "\n";
+}
+
+void mostrarConsumosDeReserva(const string& codigoReserva) {
+    vector<ConsumoServicio> lista = cargarConsumos();
+    int cantidad = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getCodigoReserva() == codigoReserva) {
+            cout << "   - ";
+            mostrarConsumo(lista[i]);
+            cantidad++;
+        }
+    }
+    if (cantidad == 0) cout << "   (sin servicios consumidos)\n";
+}
+
+static void registrarConsumoMenu() {
+    string codigoReserva = leerTextoObligatorio("Codigo de la reserva: ");
+    Reserva r = obtenerReserva(codigoReserva); // si no existe, lanza error: no hay cobros sin reserva
+    if (!r.estaActiva())
+        throw invalid_argument("La reserva esta cancelada.");
+    if (reservaTieneFactura(codigoReserva))
+        throw invalid_argument("La reserva ya tiene factura, no se pueden agregar servicios.");
+
+    cout << "\nServicios disponibles:\n";
+    mostrarServiciosActivos();
+    string codigoServicio = leerTextoObligatorio("Codigo del servicio: ");
+    int cantidad = leerEntero("Cantidad (platos, prendas o dias): ", 1, 100);
+
+    double costo = calcularCostoServicio(codigoServicio, cantidad);
+    double precioAplicado = costo / cantidad;   // precio por unidad (incluye recargos)
+
+    vector<ConsumoServicio> lista = cargarConsumos();
+    ConsumoServicio nuevo(generarCodigo("C", (int)lista.size() + 1), codigoReserva,
+                          codigoServicio, cantidad, precioAplicado);
+    cout << "Valor total del consumo: $" << dinero(nuevo.getValorTotal()) << "\n";
+    if (!confirmar("Guardar el consumo")) {
+        cout << "Consumo descartado.\n";
+        return;
+    }
+    lista.push_back(nuevo);
+    guardarConsumos(lista);
+    cout << "Consumo guardado con codigo " << nuevo.getCodigo() << ".\n";
+}
+
+static void verConsumosDeUnaReserva() {
+    string codigoReserva = leerTextoObligatorio("Codigo de la reserva: ");
+    obtenerReserva(codigoReserva); // verifica que exista
+    cout << "\nConsumos de la reserva " << codigoReserva << ":\n";
+    mostrarConsumosDeReserva(codigoReserva);
+    cout << "Subtotal servicios: $" << dinero(subtotalServicios(codigoReserva)) << "\n";
+}
+
+static void verTodosLosConsumos() {
+    vector<ConsumoServicio> lista = cargarConsumos();
+    cout << "\n=== CONSUMOS (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++) mostrarConsumo(lista[i]);
+}
+
+void menuConsumos() {
+    int opcion;
+    do {
+        cout << "\n=== CONSUMOS DE SERVICIOS ===\n"
+             << "1. Ver servicios disponibles\n"
+             << "2. Registrar consumo en una reserva\n"
+             << "3. Ver consumos de una reserva\n"
+             << "4. Ver todos los consumos\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: cout << "\n"; mostrarServiciosActivos(); break;
+                case 2: registrarConsumoMenu(); break;
+                case 3: verConsumosDeUnaReserva(); break;
+                case 4: verTodosLosConsumos(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\gestionFacturas.cpp
+========================================
+#include "../header/gestionFacturas.h"
+#include "../header/gestionReservas.h"
+#include "../header/gestionConsumos.h"
+#include "../header/utilidades.h"
+#include "../header/Fecha.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+// Impuesto aplicado a la factura (19%). Si cambia, se cambia solo aqui.
+static const double TASA_IMPUESTO = 0.19;
+
+static string rutaFacturas() { return rutaArchivo("facturas.csv"); }
+
+vector<Factura> cargarFacturas() {
+    vector<string> lineas = leerLineas(rutaFacturas());
+    vector<Factura> lista;
+    for (size_t i = 0; i < lineas.size(); i++) {
+        try {
+            Factura f = Factura::deserializar(lineas[i]);
+            for (size_t j = 0; j < lista.size(); j++)
+                if (lista[j].getCodigo() == f.getCodigo())
+                    throw invalid_argument("Codigo de factura repetido.");
+            lista.push_back(f);
+        } catch (const exception& e) {
+            throw runtime_error("facturas.csv, linea " + to_string(i + 1) + ": " + e.what());
+        }
+    }
+    return lista;
+}
+
+static void guardarFacturas(const vector<Factura>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i].serializar());
+    escribirLineas(rutaFacturas(), lineas);
+}
+
+void inicializarArchivoFacturas() {
+    if (!existeArchivo(rutaFacturas())) {
+        vector<string> vacio;
+        escribirLineas(rutaFacturas(), vacio);
+    }
+    cargarFacturas(); // valida el formato del archivo
+}
+
+bool reservaTieneFactura(const string& codigoReserva) {
+    vector<Factura> lista = cargarFacturas();
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getCodigoReserva() == codigoReserva) return true;
+    return false;
+}
+
+static void mostrarDetalleFactura(const Factura& f) {
+    Reserva r = obtenerReserva(f.getCodigoReserva());
+    cout << "\n===== FACTURA " << f.getCodigo() << " =====\n"
+         << "Fecha de emision: " << f.getFechaEmision() << "\n"
+         << "Reserva: " << r.getCodigo() << " | Huesped: " << r.getDocumentoHuesped()
+         << " | Habitacion: " << r.getCodigoHabitacion() << "\n"
+         << "Estadia: " << r.getFechaEntrada() << " a " << r.getFechaSalida() << "\n"
+         << "Noches: " << r.calcularNoches() << " x $" << dinero(r.getTarifaPorNoche())
+         << " = $" << dinero(f.getValorNoches()) << "\n"
+         << "Servicios consumidos:\n";
+    mostrarConsumosDeReserva(r.getCodigo());
+    cout << "Subtotal servicios: $" << dinero(f.getSubtotalServicios()) << "\n"
+         << "Subtotal (noches + servicios): $"
+         << dinero(f.getValorNoches() + f.getSubtotalServicios()) << "\n"
+         << "Impuestos (" << (int)(TASA_IMPUESTO * 100) << "%): $" << dinero(f.getImpuestos()) << "\n"
+         << "TOTAL A PAGAR: $" << dinero(f.getTotalPagar()) << "\n"
+         << "Estado de pago: " << f.getEstadoPago() << "\n";
+}
+
+static void generarFacturaMenu() {
+    string codigoReserva = leerTextoObligatorio("Codigo de la reserva a facturar: ");
+    Reserva r = obtenerReserva(codigoReserva);
+    if (!r.estaActiva())
+        throw invalid_argument("No se puede facturar una reserva cancelada.");
+    if (reservaTieneFactura(codigoReserva))
+        throw invalid_argument("Esa reserva ya tiene factura.");
+
+    vector<Factura> lista = cargarFacturas();
+    Factura nueva(generarCodigo("F", (int)lista.size() + 1), codigoReserva, Fecha::hoy(),
+                  r.calcularValorEstimado(), subtotalServicios(codigoReserva), TASA_IMPUESTO);
+    mostrarDetalleFactura(nueva);
+    if (!confirmar("Guardar la factura")) {
+        cout << "Factura descartada.\n";
+        return;
+    }
+    lista.push_back(nueva);
+    guardarFacturas(lista);
+    cout << "Factura guardada con codigo " << nueva.getCodigo() << ".\n";
+}
+
+static void listarFacturas() {
+    vector<Factura> lista = cargarFacturas();
+    cout << "\n=== FACTURAS (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++) {
+        cout << lista[i].getCodigo() << " | Reserva " << lista[i].getCodigoReserva()
+             << " | " << lista[i].getFechaEmision()
+             << " | Total $" << dinero(lista[i].getTotalPagar())
+             << " | " << lista[i].getEstadoPago() << "\n";
+    }
+}
+
+static void buscarPorCodigoFactura() {
+    string codigo = leerTextoObligatorio("Codigo de la factura: ");
+    vector<Factura> lista = cargarFacturas();
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getCodigo() == codigo) {
+            mostrarDetalleFactura(lista[i]);
+            return;
+        }
+    }
+    cout << "No existe esa factura.\n";
+}
+
+static void buscarPorReservaFactura() {
+    string codigoReserva = leerTextoObligatorio("Codigo de la reserva: ");
+    vector<Factura> lista = cargarFacturas();
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getCodigoReserva() == codigoReserva) {
+            mostrarDetalleFactura(lista[i]);
+            return;
+        }
+    }
+    cout << "Esa reserva no tiene factura.\n";
+}
+
+static void registrarPagoMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la factura: ");
+    vector<Factura> lista = cargarFacturas();
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getCodigo() != codigo) continue;
+        if (lista[i].getEstadoPagoEnum() == EstadoPago::Pagada)
+            throw invalid_argument("Esa factura ya estaba pagada.");
+        lista[i].registrarPago();
+        guardarFacturas(lista);
+        cout << "Pago registrado. La factura quedo como Pagada.\n";
+        return;
+    }
+    throw invalid_argument("No existe esa factura.");
+}
+
+void menuFacturacion() {
+    int opcion;
+    do {
+        cout << "\n=== FACTURACION ===\n"
+             << "1. Generar factura de una reserva\n"
+             << "2. Ver todas las facturas\n"
+             << "3. Ver detalle por codigo de factura\n"
+             << "4. Buscar factura por codigo de reserva\n"
+             << "5. Registrar pago de una factura\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: generarFacturaMenu(); break;
+                case 2: listarFacturas(); break;
+                case 3: buscarPorCodigoFactura(); break;
+                case 4: buscarPorReservaFactura(); break;
+                case 5: registrarPagoMenu(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\gestionHabitaciones.cpp
+========================================
+#include "../header/gestionHabitaciones.h"
+#include "../header/gestionReservas.h"
+#include "../header/utilidades.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+static string rutaHabitaciones() { return rutaArchivo("habitaciones.csv"); }
+
+vector<Habitacion> cargarHabitaciones() {
+    vector<string> lineas = leerLineas(rutaHabitaciones());
+    vector<Habitacion> lista;
+    for (size_t i = 0; i < lineas.size(); i++) {
+        try {
+            Habitacion h = Habitacion::deserializar(lineas[i]);
+            for (size_t j = 0; j < lista.size(); j++)
+                if (lista[j].getCodigo() == h.getCodigo())
+                    throw invalid_argument("Codigo de habitacion repetido.");
+            lista.push_back(h);
+        } catch (const exception& e) {
+            throw runtime_error("habitaciones.csv, linea " + to_string(i + 1) + ": " + e.what());
+        }
+    }
+    return lista;
+}
+
+void guardarHabitaciones(const vector<Habitacion>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i].serializar());
+    escribirLineas(rutaHabitaciones(), lineas);
+}
+
+void inicializarArchivoHabitaciones() {
+    bool vacio = true;
+    if (existeArchivo(rutaHabitaciones())) vacio = leerLineas(rutaHabitaciones()).empty();
+    if (vacio) {
+        vector<Habitacion> lista;
+        lista.push_back(Habitacion("101", TipoHabitacion::Sencilla, 1, 100000));
+        lista.push_back(Habitacion("102", TipoHabitacion::Sencilla, 1, 100000));
+        lista.push_back(Habitacion("103", TipoHabitacion::Sencilla, 1, 105000));
+        lista.push_back(Habitacion("104", TipoHabitacion::Sencilla, 1, 105000));
+        lista.push_back(Habitacion("105", TipoHabitacion::Doble, 2, 155000));
+        lista.push_back(Habitacion("106", TipoHabitacion::Doble, 2, 155000));
+        lista.push_back(Habitacion("107", TipoHabitacion::Doble, 2, 165000));
+        lista.push_back(Habitacion("108", TipoHabitacion::Doble, 2, 165000));
+        lista.push_back(Habitacion("201", TipoHabitacion::Familiar, 4, 250000));
+        lista.push_back(Habitacion("202", TipoHabitacion::Familiar, 4, 250000,
+                                   EstadoHabitacion::FueraDeServicio));
+        lista.push_back(Habitacion("203", TipoHabitacion::Suite, 2, 350000));
+        lista.push_back(Habitacion("204", TipoHabitacion::Suite, 2, 350000,
+                                   EstadoHabitacion::Mantenimiento));
+        guardarHabitaciones(lista);
+    } else {
+        cargarHabitaciones(); // valida el formato del archivo
+    }
+}
+
+void mostrarHabitacion(const Habitacion& h, const string& estado) {
+    cout << "Habitacion " << h.getCodigo() << " | " << Habitacion::nombreTipo(h.getTipo())
+         << " | Capacidad " << h.getCapacidad() << " | $"
+         << dinero(h.getPrecioPorNoche()) << "/noche | " << estado << "\n";
+}
+
+static int buscarIndice(const vector<Habitacion>& lista, const string& codigo) {
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getCodigo() == codigo) return (int)i;
+    return -1;
+}
+
+// Cuenta las reservas de una habitacion. Si soloActivas es true, ignora las canceladas.
+static int contarReservasDeHabitacion(const string& codigo, bool soloActivas) {
+    vector<Reserva> reservas = cargarReservas();
+    int cantidad = 0;
+    for (size_t i = 0; i < reservas.size(); i++) {
+        if (reservas[i].getCodigoHabitacion() != codigo) continue;
+        if (soloActivas && !reservas[i].estaActiva()) continue;
+        cantidad++;
+    }
+    return cantidad;
+}
+
+static TipoHabitacion elegirTipo() {
+    int t = leerEntero("Tipo (1=Sencilla, 2=Doble, 3=Familiar, 4=Suite): ", 1, 4);
+    if (t == 1) return TipoHabitacion::Sencilla;
+    if (t == 2) return TipoHabitacion::Doble;
+    if (t == 3) return TipoHabitacion::Familiar;
+    return TipoHabitacion::Suite;
+}
+
+static void listarHabitaciones() {
+    vector<Habitacion> lista = cargarHabitaciones();
+    vector<Reserva> reservas = cargarReservas();
+    cout << "\n=== HABITACIONES (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++)
+        mostrarHabitacion(lista[i], estadoActualHabitacion(lista[i], reservas));
+    cout << "Disponible = libre hoy para ocupar. Ocupada = tiene una reserva que incluye hoy.\n";
+}
+
+static void buscarHabitacionMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
+    vector<Habitacion> lista = cargarHabitaciones();
+    vector<Reserva> reservas = cargarReservas();
+    int pos = buscarIndice(lista, codigo);
+    if (pos == -1) cout << "No existe esa habitacion.\n";
+    else mostrarHabitacion(lista[pos], estadoActualHabitacion(lista[pos], reservas));
+}
+
+static void agregarHabitacionMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
+    vector<Habitacion> lista = cargarHabitaciones();
+    if (buscarIndice(lista, codigo) != -1)
+        throw invalid_argument("Ese codigo de habitacion ya existe.");
+    TipoHabitacion tipo = elegirTipo();
+    int capacidad = leerEntero("Capacidad (1-20): ", 1, 20);
+    double precio = leerDecimal("Precio por noche: ", 0);
+    lista.push_back(Habitacion(codigo, tipo, capacidad, precio));
+    guardarHabitaciones(lista);
+    cout << "Habitacion registrada.\n";
+}
+
+static void actualizarHabitacionMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
+    vector<Habitacion> lista = cargarHabitaciones();
+    int pos = buscarIndice(lista, codigo);
+    if (pos == -1) throw invalid_argument("No existe esa habitacion.");
+    TipoHabitacion tipo = elegirTipo();
+    int capacidad = leerEntero("Nueva capacidad (1-20): ", 1, 20);
+    double precio = leerDecimal("Nuevo precio por noche: ", 0);
+
+    // Si baja la capacidad, no puede dejar a una reserva activa con mas personas de las que caben.
+    vector<Reserva> reservas = cargarReservas();
+    for (size_t i = 0; i < reservas.size(); i++) {
+        if (reservas[i].getCodigoHabitacion() == codigo && reservas[i].estaActiva() &&
+            reservas[i].getPersonas() > capacidad)
+            throw invalid_argument("La reserva " + reservas[i].getCodigo() +
+                                   " tiene mas personas que la nueva capacidad.");
+    }
+    lista[pos].actualizarDatos(tipo, capacidad, precio);
+    guardarHabitaciones(lista);
+    cout << "Habitacion actualizada.\n";
+}
+
+static void cambiarEstadoMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
+    vector<Habitacion> lista = cargarHabitaciones();
+    int pos = buscarIndice(lista, codigo);
+    if (pos == -1) throw invalid_argument("No existe esa habitacion.");
+    int e = leerEntero("Estado (1=Disponible, 2=Mantenimiento, 3=Fuera de servicio): ", 1, 3);
+    if (e != 1 && contarReservasDeHabitacion(codigo, true) > 0)
+        throw invalid_argument("La habitacion tiene reservas activas. Cancelalas antes de bloquearla.");
+    if (e == 1) lista[pos].cambiarEstado(EstadoHabitacion::Disponible);
+    else if (e == 2) lista[pos].cambiarEstado(EstadoHabitacion::Mantenimiento);
+    else lista[pos].cambiarEstado(EstadoHabitacion::FueraDeServicio);
+    guardarHabitaciones(lista);
+    cout << "Estado actualizado.\n";
+}
+
+static void eliminarHabitacionMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la habitacion a eliminar: ");
+    vector<Habitacion> lista = cargarHabitaciones();
+    int pos = buscarIndice(lista, codigo);
+    if (pos == -1) throw invalid_argument("No existe esa habitacion.");
+    if (contarReservasDeHabitacion(codigo, false) > 0)
+        throw invalid_argument("Tiene historial de reservas. Mejor ponla fuera de servicio.");
+    if (confirmar("Eliminar la habitacion " + codigo)) {
+        lista.erase(lista.begin() + pos);
+        guardarHabitaciones(lista);
+        cout << "Habitacion eliminada.\n";
+    }
+}
+
+// Menu del administrador: ve todas las opciones.
+static void menuHabitacionesAdmin() {
+    int opcion;
+    do {
+        cout << "\n=== GESTION DE HABITACIONES ===\n"
+             << "1. Ver todas las habitaciones\n"
+             << "2. Buscar por codigo\n"
+             << "3. Agregar habitacion\n"
+             << "4. Actualizar tipo, capacidad y precio\n"
+             << "5. Cambiar estado (mantenimiento, fuera de servicio)\n"
+             << "6. Eliminar habitacion\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: listarHabitaciones(); break;
+                case 2: buscarHabitacionMenu(); break;
+                case 3: agregarHabitacionMenu(); break;
+                case 4: actualizarHabitacionMenu(); break;
+                case 5: cambiarEstadoMenu(); break;
+                case 6: eliminarHabitacionMenu(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+// Menu del recepcionista: solo consulta. No ve las opciones del administrador.
+static void menuHabitacionesRecepcion() {
+    int opcion;
+    do {
+        cout << "\n=== CONSULTA DE HABITACIONES ===\n"
+             << "1. Ver todas las habitaciones\n"
+             << "2. Buscar por codigo\n"
+             << "3. Consultar disponibilidad por fechas\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: listarHabitaciones(); break;
+                case 2: buscarHabitacionMenu(); break;
+                case 3: consultarDisponibilidadMenu(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+void menuHabitaciones(const Usuario& usuario) {
+    if (usuario.tienePermiso("habitaciones_admin")) menuHabitacionesAdmin();
+    else if (usuario.tienePermiso("habitaciones_consultar")) menuHabitacionesRecepcion();
+    else cout << "Acceso denegado para este rol.\n";
+}
+
+
+========================================
+ARCHIVO: source\gestionHuespedes.cpp
+========================================
+#include "../header/gestionHuespedes.h"
+#include "../header/utilidades.h"
+#include "../header/gestionReservas.h"
+#include "../header/gestionConsumos.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+static string rutaHuespedes() { return rutaArchivo("huespedes.csv"); }
+
+vector<Huesped> cargarHuespedes() {
+    vector<string> lineas = leerLineas(rutaHuespedes());
+    vector<Huesped> lista;
+    for (size_t i = 0; i < lineas.size(); i++) {
+        try {
+            Huesped h;
+            h.deserializar(lineas[i]);
+            for (size_t j = 0; j < lista.size(); j++)
+                if (lista[j].getDocumento() == h.getDocumento())
+                    throw invalid_argument("Documento duplicado.");
+            lista.push_back(h);
+        } catch (const exception& e) {
+            throw runtime_error("huespedes.csv, linea " + to_string(i + 1) + ": " + e.what());
+        }
+    }
+    return lista;
+}
+
+void guardarHuespedes(const vector<Huesped>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i].serializar());
+    escribirLineas(rutaHuespedes(), lineas);
+}
+
+void inicializarArchivoHuespedes() {
+    if (!existeArchivo(rutaHuespedes())) {
+        vector<string> vacio;
+        escribirLineas(rutaHuespedes(), vacio);
+    }
+    cargarHuespedes(); // valida el formato del archivo
+}
+
+bool existeHuesped(const string& documento) {
+    vector<Huesped> lista = cargarHuespedes();
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getDocumento() == documento) return true;
+    return false;
+}
+
+void registrarHuesped(const Huesped& nuevo) {
+    vector<Huesped> lista = cargarHuespedes();
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getDocumento() == nuevo.getDocumento())
+            throw invalid_argument("Ya existe un huesped con ese documento.");
+    lista.push_back(nuevo);
+    guardarHuespedes(lista);
+}
+
+static void mostrarHuesped(const Huesped& h) {
+    cout << h.getDocumento() << " | " << h.getNombre() << " | "
+         << h.getTelefono() << " | " << h.getCorreo() << "\n";
+}
+
+static void registrarHuespedMenu() {
+    string documento = leerTextoObligatorio("Documento: ");
+    string nombre = leerTextoObligatorio("Nombre completo: ");
+    string telefono = leerTextoObligatorio("Telefono: ");
+    string correo = leerTextoObligatorio("Correo: ");
+    Huesped h(documento, nombre, telefono, correo);
+    registrarHuesped(h);
+    cout << "Huesped registrado.\n";
+}
+
+static void listarHuespedes() {
+    vector<Huesped> lista = cargarHuespedes();
+    cout << "\n=== HUESPEDES (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++) mostrarHuesped(lista[i]);
+}
+
+static void buscarPorDocumento() {
+    string documento = leerTextoObligatorio("Documento: ");
+    vector<Huesped> lista = cargarHuespedes();
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getDocumento() == documento) {
+            mostrarHuesped(lista[i]);
+            return;
+        }
+    }
+    cout << "No hay un huesped con ese documento.\n";
+}
+
+static void buscarPorNombre() {
+    string texto = aMinusculas(leerTextoObligatorio("Nombre (o parte): "));
+    vector<Huesped> lista = cargarHuespedes();
+    int encontrados = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (aMinusculas(lista[i].getNombre()).find(texto) != string::npos) {
+            mostrarHuesped(lista[i]);
+            encontrados++;
+        }
+    }
+    if (encontrados == 0) cout << "No se encontraron huespedes.\n";
+}
+
+static void actualizarHuespedMenu() {
+    string documento = leerTextoObligatorio("Documento del huesped a actualizar: ");
+    vector<Huesped> lista = cargarHuespedes();
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getDocumento() != documento) continue;
+        string nombre = leerTexto("Nuevo nombre (Enter para dejarlo igual): ");
+        string telefono = leerTexto("Nuevo telefono (Enter para dejarlo igual): ");
+        string correo = leerTexto("Nuevo correo (Enter para dejarlo igual): ");
+        if (nombre.empty()) nombre = lista[i].getNombre();
+        if (telefono.empty()) telefono = lista[i].getTelefono();
+        if (correo.empty()) correo = lista[i].getCorreo();
+        lista[i].actualizarDatos(nombre, telefono, correo);
+        guardarHuespedes(lista);
+        cout << "Datos actualizados.\n";
+        return;
+    }
+    throw invalid_argument("No existe un huesped con ese documento.");
+}
+
+// Muestra las reservas del huesped y los servicios consumidos en cada una.
+static void verHistorialHuesped() {
+    string documento = leerTextoObligatorio("Documento del huesped: ");
+    if (!existeHuesped(documento)) throw invalid_argument("No existe un huesped con ese documento.");
+    vector<Reserva> reservas = cargarReservas();
+    int cantidad = 0;
+    cout << "\n=== HISTORIAL DEL HUESPED " << documento << " ===\n";
+    for (size_t i = 0; i < reservas.size(); i++) {
+        if (reservas[i].getDocumentoHuesped() != documento) continue;
+        mostrarResumenReserva(reservas[i]);
+        mostrarConsumosDeReserva(reservas[i].getCodigo());
+        cantidad++;
+    }
+    if (cantidad == 0) cout << "Este huesped no tiene reservas.\n";
+}
+
+void menuHuespedes() {
+    int opcion;
+    do {
+        cout << "\n=== GESTION DE HUESPEDES ===\n"
+             << "1. Registrar huesped\n"
+             << "2. Listar huespedes\n"
+             << "3. Buscar por documento\n"
+             << "4. Buscar por nombre\n"
+             << "5. Actualizar datos\n"
+             << "6. Ver historial de reservas y consumos\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: registrarHuespedMenu(); break;
+                case 2: listarHuespedes(); break;
+                case 3: buscarPorDocumento(); break;
+                case 4: buscarPorNombre(); break;
+                case 5: actualizarHuespedMenu(); break;
+                case 6: verHistorialHuesped(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\gestionReportes.cpp
+========================================
+#include "../header/gestionReportes.h"
+#include "../header/gestionHabitaciones.h"
+#include "../header/gestionReservas.h"
+#include "../header/gestionConsumos.h"
+#include "../header/gestionFacturas.h"
+#include "../header/gestionServicios.h"
+#include "../header/utilidades.h"
+#include "../header/Fecha.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+// Cada reporte arma una lista de lineas de texto y las guarda con escribirLineas.
+
+static void reporteReservas() {
+    vector<Reserva> reservas = cargarReservas();
+    vector<string> lineas;
+    lineas.push_back("REPORTE DE RESERVAS");
+    lineas.push_back("Fecha del reporte: " + Fecha::hoy());
+    lineas.push_back("Total de reservas: " + to_string(reservas.size()));
+    lineas.push_back("");
+    for (size_t i = 0; i < reservas.size(); i++) {
+        const Reserva& r = reservas[i];
+        lineas.push_back(r.getCodigo() + " | Doc " + r.getDocumentoHuesped() +
+                         " | Hab " + r.getCodigoHabitacion() +
+                         " | " + r.getFechaEntrada() + " a " + r.getFechaSalida() +
+                         " | " + to_string(r.getPersonas()) + " persona(s)" +
+                         " | " + Reserva::nombreEstado(r.getEstado()) +
+                         " | $" + dinero(r.calcularValorEstimado()));
+    }
+    escribirLineas(rutaArchivo("reporte_reservas.txt"), lineas);
+}
+
+static void reporteOcupacion() {
+    vector<Habitacion> habitaciones = cargarHabitaciones();
+    vector<Reserva> reservas = cargarReservas();
+    vector<string> lineas;
+    lineas.push_back("REPORTE DE OCUPACION");
+    lineas.push_back("Fecha del reporte: " + Fecha::hoy());
+    lineas.push_back("");
+    int ocupadasHoy = 0;
+    for (size_t i = 0; i < habitaciones.size(); i++) {
+        int reservasActivas = 0;
+        int nochesReservadas = 0;
+        for (size_t j = 0; j < reservas.size(); j++) {
+            if (reservas[j].getCodigoHabitacion() == habitaciones[i].getCodigo() &&
+                reservas[j].estaActiva()) {
+                reservasActivas++;
+                nochesReservadas = nochesReservadas + reservas[j].calcularNoches();
+            }
+        }
+        string estado = estadoActualHabitacion(habitaciones[i], reservas);
+        if (estado == "Ocupada") ocupadasHoy++;
+        lineas.push_back("Hab " + habitaciones[i].getCodigo() + " | " +
+                         Habitacion::nombreTipo(habitaciones[i].getTipo()) +
+                         " | Hoy: " + estado +
+                         " | Reservas activas: " + to_string(reservasActivas) +
+                         " | Noches reservadas: " + to_string(nochesReservadas));
+    }
+    lineas.push_back("");
+    lineas.push_back("Habitaciones ocupadas hoy: " + to_string(ocupadasHoy) +
+                     " de " + to_string(habitaciones.size()));
+    escribirLineas(rutaArchivo("reporte_ocupacion.txt"), lineas);
+}
+
+static void reporteIngresos() {
+    vector<Factura> facturas = cargarFacturas();
+    vector<string> lineas;
+    lineas.push_back("REPORTE DE INGRESOS");
+    lineas.push_back("Fecha del reporte: " + Fecha::hoy());
+    lineas.push_back("");
+    double pagado = 0, pendiente = 0, impuestos = 0;
+    for (size_t i = 0; i < facturas.size(); i++) {
+        if (facturas[i].getEstadoPago() == "Pagada") {
+            pagado = pagado + facturas[i].getTotalPagar();
+            impuestos = impuestos + facturas[i].getImpuestos();
+        } else {
+            pendiente = pendiente + facturas[i].getTotalPagar();
+        }
+        lineas.push_back(facturas[i].getCodigo() + " | " + facturas[i].getFechaEmision() +
+                         " | $" + dinero(facturas[i].getTotalPagar()) +
+                         " | " + facturas[i].getEstadoPago());
+    }
+    lineas.push_back("");
+    lineas.push_back("Total cobrado (facturas pagadas): $" + dinero(pagado));
+    lineas.push_back("  de los cuales impuestos: $" + dinero(impuestos));
+    lineas.push_back("Total por cobrar (facturas pendientes): $" + dinero(pendiente));
+    escribirLineas(rutaArchivo("reporte_ingresos.txt"), lineas);
+}
+
+static void reporteServicios() {
+    vector<Servicio*> servicios = cargarServicios();
+    vector<ConsumoServicio> consumos = cargarConsumos();
+    vector<string> lineas;
+    lineas.push_back("REPORTE DE SERVICIOS CONSUMIDOS");
+    lineas.push_back("Fecha del reporte: " + Fecha::hoy());
+    lineas.push_back("");
+    double granTotal = 0;
+    for (size_t i = 0; i < servicios.size(); i++) {
+        int unidades = 0;
+        double total = 0;
+        for (size_t j = 0; j < consumos.size(); j++) {
+            if (consumos[j].getCodigoServicio() == servicios[i]->getCodigo()) {
+                unidades = unidades + consumos[j].getCantidad();
+                total = total + consumos[j].getValorTotal();
+            }
+        }
+        granTotal = granTotal + total;
+        lineas.push_back(servicios[i]->getCodigo() + " | " + servicios[i]->getNombre() +
+                         " | Unidades: " + to_string(unidades) + " | Total $" + dinero(total));
+    }
+    lineas.push_back("");
+    lineas.push_back("Total de servicios consumidos: $" + dinero(granTotal));
+    liberarServicios(servicios);
+    escribirLineas(rutaArchivo("reporte_servicios.txt"), lineas);
+}
+
+static void reporteFacturas() {
+    vector<Factura> facturas = cargarFacturas();
+    vector<string> lineas;
+    lineas.push_back("REPORTE DE FACTURAS");
+    lineas.push_back("Fecha del reporte: " + Fecha::hoy());
+    lineas.push_back("Total de facturas: " + to_string(facturas.size()));
+    lineas.push_back("");
+    for (size_t i = 0; i < facturas.size(); i++) {
+        const Factura& f = facturas[i];
+        lineas.push_back(f.getCodigo() + " | Reserva " + f.getCodigoReserva() +
+                         " | " + f.getFechaEmision() +
+                         " | Noches $" + dinero(f.getValorNoches()) +
+                         " | Servicios $" + dinero(f.getSubtotalServicios()) +
+                         " | Impuestos $" + dinero(f.getImpuestos()) +
+                         " | TOTAL $" + dinero(f.getTotalPagar()) +
+                         " | " + f.getEstadoPago());
+    }
+    escribirLineas(rutaArchivo("reporte_facturas.txt"), lineas);
+}
+
+void menuReportes(const Usuario& usuario) {
+    if (!usuario.tienePermiso("reportes")) {
+        cout << "Acceso denegado para este rol.\n";
+        return;
+    }
+    int opcion;
+    do {
+        cout << "\n=== REPORTES (se guardan en la carpeta Persistencia) ===\n"
+             << "1. Reporte de reservas\n"
+             << "2. Reporte de ocupacion\n"
+             << "3. Reporte de ingresos\n"
+             << "4. Reporte de servicios\n"
+             << "5. Reporte de facturas\n"
+             << "6. Generar todos los reportes\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: reporteReservas(); cout << "Archivo reporte_reservas.txt generado.\n"; break;
+                case 2: reporteOcupacion(); cout << "Archivo reporte_ocupacion.txt generado.\n"; break;
+                case 3: reporteIngresos(); cout << "Archivo reporte_ingresos.txt generado.\n"; break;
+                case 4: reporteServicios(); cout << "Archivo reporte_servicios.txt generado.\n"; break;
+                case 5: reporteFacturas(); cout << "Archivo reporte_facturas.txt generado.\n"; break;
+                case 6:
+                    reporteReservas();
+                    reporteOcupacion();
+                    reporteIngresos();
+                    reporteServicios();
+                    reporteFacturas();
+                    cout << "Los 5 reportes fueron generados.\n";
+                    break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\gestionReservas.cpp
+========================================
+#include "../header/gestionReservas.h"
+#include "../header/gestionHabitaciones.h"
+#include "../header/gestionHuespedes.h"
+#include "../header/gestionConsumos.h"
+#include "../header/gestionFacturas.h"
+#include "../header/utilidades.h"
+#include "../header/Fecha.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+static string rutaReservas() { return rutaArchivo("reservas.csv"); }
+
+vector<Reserva> cargarReservas() {
+    vector<string> lineas = leerLineas(rutaReservas());
+    vector<Reserva> lista;
+    for (size_t i = 0; i < lineas.size(); i++) {
+        try {
+            Reserva r = Reserva::deserializar(lineas[i]);
+            for (size_t j = 0; j < lista.size(); j++)
+                if (lista[j].getCodigo() == r.getCodigo())
+                    throw invalid_argument("Codigo de reserva repetido.");
+            lista.push_back(r);
+        } catch (const exception& e) {
+            throw runtime_error("reservas.csv, linea " + to_string(i + 1) + ": " + e.what());
+        }
+    }
+    return lista;
+}
+
+void guardarReservas(const vector<Reserva>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i].serializar());
+    escribirLineas(rutaReservas(), lineas);
+}
+
+void inicializarArchivoReservas() {
+    if (!existeArchivo(rutaReservas())) {
+        vector<string> vacio;
+        escribirLineas(rutaReservas(), vacio);
+    }
+    cargarReservas(); // valida el formato del archivo
+}
+
+Reserva obtenerReserva(const string& codigo) {
+    vector<Reserva> lista = cargarReservas();
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getCodigo() == codigo) return lista[i];
+    throw invalid_argument("No existe la reserva " + codigo + ".");
+}
+
+// Una habitacion esta libre si ninguna reserva activa suya se cruza con las fechas pedidas.
+// ignorarCodigo sirve al modificar una reserva (para no chocar consigo misma).
+bool habitacionLibre(const string& codigoHabitacion, const string& entrada,
+                     const string& salida, const vector<Reserva>& reservas,
+                     const string& ignorarCodigo) {
+    for (size_t i = 0; i < reservas.size(); i++) {
+        const Reserva& r = reservas[i];
+        if (!r.estaActiva()) continue;
+        if (r.getCodigoHabitacion() != codigoHabitacion) continue;
+        if (r.getCodigo() == ignorarCodigo) continue;
+        if (Fecha::seSuperponen(entrada, salida, r.getFechaEntrada(), r.getFechaSalida()))
+            return false;
+    }
+    return true;
+}
+
+// tipo = "" significa cualquier tipo de habitacion.
+vector<Habitacion> buscarHabitacionesLibres(const string& entrada, const string& salida,
+                                            int personas, const string& tipo) {
+    Fecha::diasEntre(entrada, salida); // valida las fechas
+    if (personas <= 0) throw invalid_argument("El numero de personas debe ser positivo.");
+    vector<Habitacion> habitaciones = cargarHabitaciones();
+    vector<Reserva> reservas = cargarReservas();
+    vector<Habitacion> libres;
+    for (size_t i = 0; i < habitaciones.size(); i++) {
+        const Habitacion& h = habitaciones[i];
+        if (!h.estaOperativa()) continue;                 // mantenimiento o fuera de servicio
+        if (h.getCapacidad() < personas) continue;        // no cabe la gente
+        if (tipo != "" && Habitacion::nombreTipo(h.getTipo()) != tipo) continue;
+        if (habitacionLibre(h.getCodigo(), entrada, salida, reservas, ""))
+            libres.push_back(h);
+    }
+    return libres;
+}
+
+string estadoActualHabitacion(const Habitacion& h, const vector<Reserva>& reservas) {
+    if (!h.estaOperativa()) return Habitacion::nombreEstado(h.getEstado());
+    string hoy = Fecha::hoy();
+    for (size_t i = 0; i < reservas.size(); i++) {
+        const Reserva& r = reservas[i];
+        if (r.estaActiva() && r.getCodigoHabitacion() == h.getCodigo() &&
+            r.getFechaEntrada() <= hoy && hoy < r.getFechaSalida())
+            return "Ocupada";
+    }
+    return "Disponible";
+}
+
+// Fechas de una reserva nueva: validas y no anteriores a hoy.
+static void validarFechasNuevas(const string& entrada, const string& salida) {
+    Fecha::diasEntre(entrada, salida);
+    if (entrada < Fecha::hoy())
+        throw invalid_argument("La fecha de entrada no puede ser anterior a hoy.");
+}
+
+static string leerTipoFiltro() {
+    int t = leerEntero("Tipo (0=Cualquiera, 1=Sencilla, 2=Doble, 3=Familiar, 4=Suite): ", 0, 4);
+    if (t == 1) return "Sencilla";
+    if (t == 2) return "Doble";
+    if (t == 3) return "Familiar";
+    if (t == 4) return "Suite";
+    return "";
+}
+
+static int buscarReserva(const vector<Reserva>& lista, const string& codigo) {
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getCodigo() == codigo) return (int)i;
+    return -1;
+}
+
+static int buscarHabitacionPorCodigo(const vector<Habitacion>& lista, const string& codigo) {
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getCodigo() == codigo) return (int)i;
+    return -1;
+}
+
+void mostrarResumenReserva(const Reserva& r) {
+    cout << r.getCodigo() << " | Doc " << r.getDocumentoHuesped()
+         << " | Hab " << r.getCodigoHabitacion()
+         << " | " << r.getFechaEntrada() << " a " << r.getFechaSalida()
+         << " | " << r.getPersonas() << " persona(s)"
+         << " | " << Reserva::nombreEstado(r.getEstado())
+         << " | $" << dinero(r.calcularValorEstimado()) << "\n";
+}
+
+static string nombreDelHuesped(const string& documento) {
+    vector<Huesped> lista = cargarHuespedes();
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i].getDocumento() == documento) return lista[i].getNombre();
+    return "(no registrado)";
+}
+
+static void mostrarDetalleReserva(const Reserva& r) {
+    cout << "\n===== RESERVA " << r.getCodigo() << " =====\n"
+         << "Huesped: " << r.getDocumentoHuesped() << " - " << nombreDelHuesped(r.getDocumentoHuesped()) << "\n"
+         << "Habitacion: " << r.getCodigoHabitacion() << "\n"
+         << "Fechas: " << r.getFechaEntrada() << " a " << r.getFechaSalida()
+         << " (" << r.calcularNoches() << " noches)\n"
+         << "Personas: " << r.getPersonas() << "\n"
+         << "Tarifa por noche: $" << dinero(r.getTarifaPorNoche()) << "\n"
+         << "Valor estimado de la estadia: $" << dinero(r.calcularValorEstimado()) << "\n"
+         << "Estado: " << Reserva::nombreEstado(r.getEstado()) << "\n"
+         << "Servicios consumidos:\n";
+    mostrarConsumosDeReserva(r.getCodigo());
+    cout << "Subtotal servicios: $" << dinero(subtotalServicios(r.getCodigo())) << "\n";
+    if (reservaTieneFactura(r.getCodigo())) cout << "Esta reserva ya tiene factura.\n";
+}
+
+void consultarDisponibilidadMenu() {
+    cout << "\n=== CONSULTAR DISPONIBILIDAD ===\n";
+    string entrada = leerTextoObligatorio("Fecha de entrada (AAAA-MM-DD): ");
+    string salida = leerTextoObligatorio("Fecha de salida (AAAA-MM-DD): ");
+    validarFechasNuevas(entrada, salida);
+    int personas = leerEntero("Numero de personas: ", 1, 20);
+    string tipo = leerTipoFiltro();
+    vector<Habitacion> libres = buscarHabitacionesLibres(entrada, salida, personas, tipo);
+    cout << "\nHay " << libres.size() << " habitacion(es) libre(s) para "
+         << Fecha::diasEntre(entrada, salida) << " noche(s):\n";
+    for (size_t i = 0; i < libres.size(); i++)
+        mostrarHabitacion(libres[i], "Libre en esas fechas");
+}
+
+static void registrarReservaMenu() {
+    cout << "\n=== REGISTRAR RESERVA ===\n";
+    string documento = leerTextoObligatorio("Documento del huesped: ");
+    if (!existeHuesped(documento)) {
+        cout << "El huesped no esta registrado. Vamos a registrarlo.\n";
+        string nombre = leerTextoObligatorio("Nombre completo: ");
+        string telefono = leerTextoObligatorio("Telefono: ");
+        string correo = leerTextoObligatorio("Correo: ");
+        registrarHuesped(Huesped(documento, nombre, telefono, correo));
+        cout << "Huesped registrado.\n";
+    }
+    string entrada = leerTextoObligatorio("Fecha de entrada (AAAA-MM-DD): ");
+    string salida = leerTextoObligatorio("Fecha de salida (AAAA-MM-DD): ");
+    validarFechasNuevas(entrada, salida);
+    int personas = leerEntero("Numero de personas: ", 1, 20);
+    string tipo = leerTipoFiltro();
+
+    vector<Habitacion> libres = buscarHabitacionesLibres(entrada, salida, personas, tipo);
+    if (libres.empty())
+        throw invalid_argument("No hay habitaciones libres con esas condiciones.");
+    cout << "\nHabitaciones libres:\n";
+    for (size_t i = 0; i < libres.size(); i++)
+        mostrarHabitacion(libres[i], "Libre en esas fechas");
+
+    string codigoHab = leerTextoObligatorio("Codigo de la habitacion elegida: ");
+    int pos = buscarHabitacionPorCodigo(libres, codigoHab);
+    if (pos == -1)
+        throw invalid_argument("Esa habitacion no esta en la lista de habitaciones libres.");
+
+    vector<Reserva> reservas = cargarReservas();
+    Reserva nueva(generarCodigo("R", (int)reservas.size() + 1), documento, codigoHab,
+                  entrada, salida, personas, libres[pos].getPrecioPorNoche());
+    cout << "\nResumen de la reserva:\n";
+    mostrarResumenReserva(nueva);
+    if (!confirmar("Guardar la reserva")) {
+        cout << "Reserva descartada.\n";
+        return;
+    }
+    reservas.push_back(nueva);
+    guardarReservas(reservas);
+    cout << "Reserva guardada con codigo " << nueva.getCodigo() << ".\n";
+}
+
+static void listarReservas() {
+    vector<Reserva> lista = cargarReservas();
+    cout << "\n=== RESERVAS (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++) mostrarResumenReserva(lista[i]);
+}
+
+static void buscarPorCodigoReserva() {
+    string codigo = leerTextoObligatorio("Codigo de la reserva: ");
+    mostrarDetalleReserva(obtenerReserva(codigo));
+}
+
+static void buscarPorDocumento() {
+    string documento = leerTextoObligatorio("Documento del huesped: ");
+    vector<Reserva> lista = cargarReservas();
+    int encontradas = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].getDocumentoHuesped() == documento) {
+            mostrarResumenReserva(lista[i]);
+            encontradas++;
+        }
+    }
+    if (encontradas == 0) cout << "Ese documento no tiene reservas.\n";
+}
+
+static void buscarPorFecha() {
+    string fecha = leerTextoObligatorio("Fecha (AAAA-MM-DD): ");
+    if (!Fecha::esValida(fecha)) throw invalid_argument("La fecha no es valida.");
+    vector<Reserva> lista = cargarReservas();
+    int encontradas = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i].estaActiva() && lista[i].getFechaEntrada() <= fecha &&
+            fecha < lista[i].getFechaSalida()) {
+            mostrarResumenReserva(lista[i]);
+            encontradas++;
+        }
+    }
+    if (encontradas == 0) cout << "No hay reservas activas en esa fecha.\n";
+}
+
+static void cambiarFechasMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la reserva a modificar: ");
+    vector<Reserva> reservas = cargarReservas();
+    int pos = buscarReserva(reservas, codigo);
+    if (pos == -1) throw invalid_argument("No existe esa reserva.");
+    if (reservaTieneFactura(codigo))
+        throw invalid_argument("La reserva ya tiene factura y no se puede modificar.");
+
+    string entrada = leerTextoObligatorio("NUEVA fecha de entrada (AAAA-MM-DD): ");
+    string salida = leerTextoObligatorio("NUEVA fecha de salida (AAAA-MM-DD): ");
+    validarFechasNuevas(entrada, salida);
+
+    string codigoHab = reservas[pos].getCodigoHabitacion();
+    vector<Habitacion> habitaciones = cargarHabitaciones();
+    int posHab = buscarHabitacionPorCodigo(habitaciones, codigoHab);
+    if (posHab == -1 || !habitaciones[posHab].estaOperativa())
+        throw invalid_argument("La habitacion esta en mantenimiento o fuera de servicio.");
+    if (!habitacionLibre(codigoHab, entrada, salida, reservas, codigo))
+        throw invalid_argument("La habitacion ya esta reservada en esas fechas.");
+
+    reservas[pos].cambiarFechas(entrada, salida);
+    guardarReservas(reservas);
+    cout << "Fechas actualizadas.\n";
+}
+
+static void cambiarPersonasMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la reserva a modificar: ");
+    vector<Reserva> reservas = cargarReservas();
+    int pos = buscarReserva(reservas, codigo);
+    if (pos == -1) throw invalid_argument("No existe esa reserva.");
+    if (reservaTieneFactura(codigo))
+        throw invalid_argument("La reserva ya tiene factura y no se puede modificar.");
+
+    int personas = leerEntero("Nuevo numero de personas: ", 1, 20);
+    vector<Habitacion> habitaciones = cargarHabitaciones();
+    int posHab = buscarHabitacionPorCodigo(habitaciones, reservas[pos].getCodigoHabitacion());
+    if (posHab == -1) throw invalid_argument("La habitacion de la reserva ya no existe.");
+    if (personas > habitaciones[posHab].getCapacidad())
+        throw invalid_argument("La habitacion solo tiene capacidad para " +
+                               to_string(habitaciones[posHab].getCapacidad()) + " persona(s).");
+
+    reservas[pos].cambiarPersonas(personas);
+    guardarReservas(reservas);
+    cout << "Numero de personas actualizado.\n";
+}
+
+static void cancelarReservaMenu() {
+    string codigo = leerTextoObligatorio("Codigo de la reserva a cancelar: ");
+    vector<Reserva> reservas = cargarReservas();
+    int pos = buscarReserva(reservas, codigo);
+    if (pos == -1) throw invalid_argument("No existe esa reserva.");
+    if (reservaTieneFactura(codigo))
+        throw invalid_argument("La reserva ya tiene factura y no se puede cancelar.");
+    if (!confirmar("Cancelar la reserva " + codigo)) {
+        cout << "Operacion cancelada.\n";
+        return;
+    }
+    reservas[pos].cancelar();
+    guardarReservas(reservas);
+    cout << "Reserva cancelada. Se conserva en el historial y la habitacion queda libre.\n";
+}
+
+void menuReservas() {
+    int opcion;
+    do {
+        cout << "\n=== RESERVAS ===\n"
+             << "1. Registrar reserva\n"
+             << "2. Ver todas las reservas\n"
+             << "3. Ver detalle de una reserva (por codigo)\n"
+             << "4. Buscar reservas por documento del huesped\n"
+             << "5. Buscar reservas por fecha\n"
+             << "6. Cambiar fechas de una reserva\n"
+             << "7. Cambiar numero de personas\n"
+             << "8. Cancelar reserva\n"
+             << "9. Consultar disponibilidad por fechas\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: registrarReservaMenu(); break;
+                case 2: listarReservas(); break;
+                case 3: buscarPorCodigoReserva(); break;
+                case 4: buscarPorDocumento(); break;
+                case 5: buscarPorFecha(); break;
+                case 6: cambiarFechasMenu(); break;
+                case 7: cambiarPersonasMenu(); break;
+                case 8: cancelarReservaMenu(); break;
+                case 9: consultarDisponibilidadMenu(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\gestionServicios.cpp
+========================================
+#include "../header/gestionServicios.h"
+#include "../header/Alimentacion.h"
+#include "../header/Lavanderia.h"
+#include "../header/Parqueadero.h"
+#include "../header/utilidades.h"
+#include <iostream>
+#include <stdexcept>
+using namespace std;
+
+static string rutaServicios() { return rutaArchivo("servicios.csv"); }
+
+// Segun la primera palabra de la linea (el tipo) crea el objeto hijo que corresponde.
+static Servicio* crearServicioDesdeLinea(const string& linea) {
+    vector<string> c = dividirCampos(linea);
+    if (c.empty()) throw invalid_argument("Linea de servicio vacia.");
+    if (c[0] == "Alimentacion") {
+        Alimentacion* s = new Alimentacion();
+        try { s->deserializar(linea); } catch (...) { delete s; throw; }
+        return s;
+    }
+    if (c[0] == "Lavanderia") {
+        Lavanderia* s = new Lavanderia();
+        try { s->deserializar(linea); } catch (...) { delete s; throw; }
+        return s;
+    }
+    if (c[0] == "Parqueadero") {
+        Parqueadero* s = new Parqueadero();
+        try { s->deserializar(linea); } catch (...) { delete s; throw; }
+        return s;
+    }
+    throw invalid_argument("Tipo de servicio desconocido: " + c[0]);
+}
+
+void liberarServicios(vector<Servicio*>& lista) {
+    for (size_t i = 0; i < lista.size(); i++) delete lista[i];
+    lista.clear();
+}
+
+static int buscarServicio(const vector<Servicio*>& lista, const string& codigo) {
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i]->getCodigo() == codigo) return (int)i;
+    return -1;
+}
+
+vector<Servicio*> cargarServicios() {
+    vector<string> lineas = leerLineas(rutaServicios());
+    vector<Servicio*> lista;
+    try {
+        for (size_t i = 0; i < lineas.size(); i++) {
+            Servicio* s = crearServicioDesdeLinea(lineas[i]);
+            if (buscarServicio(lista, s->getCodigo()) != -1) {
+                delete s;
+                throw invalid_argument("codigo de servicio repetido en la linea " + to_string(i + 1));
+            }
+            lista.push_back(s);
+        }
+    } catch (const exception& e) {
+        liberarServicios(lista);
+        throw runtime_error(string("servicios.csv: ") + e.what());
+    }
+    return lista;
+}
+
+static void guardarServicios(const vector<Servicio*>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i]->serializar()); // polimorfismo
+    escribirLineas(rutaServicios(), lineas);
+}
+
+// Si el archivo no existe o esta vacio, crea algunos servicios de ejemplo.
+void inicializarArchivoServicios() {
+    bool vacio = true;
+    if (existeArchivo(rutaServicios())) vacio = leerLineas(rutaServicios()).empty();
+    if (vacio) {
+        vector<Servicio*> lista;
+        lista.push_back(new Alimentacion("AL01", "Desayuno", "Desayuno buffet", 20000, true, "Desayuno"));
+        lista.push_back(new Alimentacion("AL02", "Almuerzo", "Almuerzo del dia", 35000, true, "Almuerzo"));
+        lista.push_back(new Lavanderia("LA01", "Lavado normal", "Lavado por prenda", 8000, true, 0, false));
+        lista.push_back(new Lavanderia("LA02", "Lavado urgente", "Lavado en 3 horas", 8000, true, 5000, true));
+        lista.push_back(new Parqueadero("PA01", "Parqueadero carro", "Cobro por dia", 15000, true, "Carro"));
+        lista.push_back(new Parqueadero("PA02", "Parqueadero moto", "Cobro por dia", 8000, true, "Moto"));
+        guardarServicios(lista);
+        liberarServicios(lista);
+    } else {
+        vector<Servicio*> lista = cargarServicios(); // valida el formato
+        liberarServicios(lista);
+    }
+}
+
+static void mostrarServicio(const Servicio* s) {
+    cout << s->describir() << " | " << (s->isActivo() ? "Activo" : "Inactivo") << "\n";
+}
+
+void mostrarServiciosActivos() {
+    vector<Servicio*> lista = cargarServicios();
+    int cantidad = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i]->isActivo()) {
+            mostrarServicio(lista[i]);
+            cantidad++;
+        }
+    }
+    if (cantidad == 0) cout << "No hay servicios activos.\n";
+    liberarServicios(lista);
+}
+
+double calcularCostoServicio(const string& codigoServicio, int cantidad) {
+    vector<Servicio*> lista = cargarServicios();
+    double costo = 0;
+    try {
+        int pos = buscarServicio(lista, codigoServicio);
+        if (pos == -1) throw invalid_argument("No existe ese servicio.");
+        if (!lista[pos]->isActivo()) throw invalid_argument("Ese servicio esta inactivo.");
+        costo = lista[pos]->calcularCosto(cantidad); // polimorfismo: cada hija calcula distinto
+    } catch (...) {
+        liberarServicios(lista);
+        throw;
+    }
+    liberarServicios(lista);
+    return costo;
+}
+
+static void listarServicios() {
+    vector<Servicio*> lista = cargarServicios();
+    cout << "\n=== SERVICIOS (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++) mostrarServicio(lista[i]);
+    liberarServicios(lista);
+}
+
+static void buscarServicioMenu() {
+    string texto = aMinusculas(leerTextoObligatorio("Codigo o parte del nombre: "));
+    vector<Servicio*> lista = cargarServicios();
+    int encontrados = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (aMinusculas(lista[i]->getCodigo()) == texto ||
+            aMinusculas(lista[i]->getNombre()).find(texto) != string::npos) {
+            mostrarServicio(lista[i]);
+            encontrados++;
+        }
+    }
+    if (encontrados == 0) cout << "No se encontraron servicios.\n";
+    liberarServicios(lista);
+}
+
+static void registrarServicioMenu() {
+    int tipo = leerEntero("Tipo (1=Alimentacion, 2=Lavanderia, 3=Parqueadero): ", 1, 3);
+    string codigo = leerTextoObligatorio("Codigo del servicio (ej. AL03): ");
+    string nombre = leerTextoObligatorio("Nombre: ");
+    string desc = leerTextoObligatorio("Descripcion: ");
+    double precio = leerDecimal("Precio: ", 0);
+
+    vector<Servicio*> lista = cargarServicios();
+    try {
+        if (buscarServicio(lista, codigo) != -1)
+            throw invalid_argument("Ya existe un servicio con ese codigo.");
+        if (tipo == 1) {
+            string comida = leerTextoObligatorio("Tipo de comida (Desayuno/Almuerzo/Cena): ");
+            lista.push_back(new Alimentacion(codigo, nombre, desc, precio, true, comida));
+        } else if (tipo == 2) {
+            bool urgente = confirmar("Es un servicio urgente");
+            double recargo = 0;
+            if (urgente) recargo = leerDecimal("Recargo por prenda: ", 0);
+            lista.push_back(new Lavanderia(codigo, nombre, desc, precio, true, recargo, urgente));
+        } else {
+            string vehiculo = leerTextoObligatorio("Tipo de vehiculo (Carro/Moto): ");
+            lista.push_back(new Parqueadero(codigo, nombre, desc, precio, true, vehiculo));
+        }
+        guardarServicios(lista);
+    } catch (...) {
+        liberarServicios(lista);
+        throw;
+    }
+    liberarServicios(lista);
+    cout << "Servicio registrado.\n";
+}
+
+static void actualizarServicioMenu() {
+    string codigo = leerTextoObligatorio("Codigo del servicio a actualizar: ");
+    vector<Servicio*> lista = cargarServicios();
+    try {
+        int pos = buscarServicio(lista, codigo);
+        if (pos == -1) throw invalid_argument("No existe ese servicio.");
+        string nombre = leerTextoObligatorio("Nuevo nombre: ");
+        string desc = leerTextoObligatorio("Nueva descripcion: ");
+        double precio = leerDecimal("Nuevo precio: ", 0);
+        lista[pos]->actualizarDatos(nombre, desc, precio);
+        guardarServicios(lista);
+    } catch (...) {
+        liberarServicios(lista);
+        throw;
+    }
+    liberarServicios(lista);
+    cout << "Servicio actualizado.\n";
+}
+
+static void activarDesactivarMenu() {
+    string codigo = leerTextoObligatorio("Codigo del servicio: ");
+    int opcion = leerEntero("1=Activar, 2=Desactivar: ", 1, 2);
+    vector<Servicio*> lista = cargarServicios();
+    try {
+        int pos = buscarServicio(lista, codigo);
+        if (pos == -1) throw invalid_argument("No existe ese servicio.");
+        if (opcion == 1) lista[pos]->activar();
+        else lista[pos]->desactivar();
+        guardarServicios(lista);
+    } catch (...) {
+        liberarServicios(lista);
+        throw;
+    }
+    liberarServicios(lista);
+    cout << "Estado del servicio actualizado.\n";
+}
+
+void menuServicios(const Usuario& usuario) {
+    if (!usuario.tienePermiso("servicios_gestion")) {
+        cout << "Acceso denegado para este rol.\n";
+        return;
+    }
+    int opcion;
+    do {
+        cout << "\n=== GESTION DE SERVICIOS ===\n"
+             << "1. Registrar servicio\n"
+             << "2. Listar servicios\n"
+             << "3. Buscar servicio\n"
+             << "4. Actualizar nombre, descripcion y precio\n"
+             << "5. Activar o desactivar servicio\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: registrarServicioMenu(); break;
+                case 2: listarServicios(); break;
+                case 3: buscarServicioMenu(); break;
+                case 4: actualizarServicioMenu(); break;
+                case 5: activarDesactivarMenu(); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\gestionUsuarios.cpp
+========================================
+#include "../header/gestionUsuarios.h"
+#include "../header/administrador.h"
+#include "../header/recepcionista.h"
+#include "../header/utilidades.h"
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+using namespace std;
+
+static string rutaUsuarios() { return rutaArchivo("usuarios.csv"); }
+
+// Fabrica: segun el rol crea el objeto hijo correspondiente (polimorfismo).
+static Usuario* crearUsuario(const string& nombre, const string& clave,
+                             const string& rol, const string& turno) {
+    if (rol == "Administrador" || rol == "Admin") return new Administrador(nombre, clave);
+    if (rol == "Recepcionista") return new Recepcionista(nombre, clave, turno);
+    throw invalid_argument("Tipo de usuario invalido.");
+}
+
+static void liberarUsuarios(vector<Usuario*>& lista) {
+    for (size_t i = 0; i < lista.size(); i++) delete lista[i];
+    lista.clear();
+}
+
+static int buscarUsuario(const vector<Usuario*>& lista, const string& nombre) {
+    for (size_t i = 0; i < lista.size(); i++)
+        if (lista[i]->getNombreUsuario() == nombre) return (int)i;
+    return -1;
+}
+
+static vector<Usuario*> cargarUsuarios() {
+    vector<string> lineas = leerLineas(rutaUsuarios());
+    vector<Usuario*> lista;
+    try {
+        for (size_t i = 0; i < lineas.size(); i++) {
+            vector<string> c = dividirCampos(lineas[i]);
+            if (c.size() < 3)
+                throw invalid_argument("linea " + to_string(i + 1) + " con formato incorrecto");
+            string turno = "";
+            if (c.size() >= 4) turno = c[3];
+            Usuario* u = crearUsuario(c[0], c[1], c[2], turno);
+            if (buscarUsuario(lista, u->getNombreUsuario()) != -1) {
+                delete u;
+                throw invalid_argument("usuario repetido en la linea " + to_string(i + 1));
+            }
+            lista.push_back(u);
+        }
+    } catch (const exception& e) {
+        liberarUsuarios(lista);
+        throw runtime_error(string("usuarios.csv: ") + e.what());
+    }
+    return lista;
+}
+
+static void guardarUsuarios(const vector<Usuario*>& lista) {
+    vector<string> lineas;
+    for (size_t i = 0; i < lista.size(); i++)
+        lineas.push_back(lista[i]->serializar()); // polimorfismo
+    escribirLineas(rutaUsuarios(), lineas);
+}
+
+void inicializarArchivoUsuarios() {
+    bool vacio = true;
+    if (existeArchivo(rutaUsuarios())) vacio = leerLineas(rutaUsuarios()).empty();
+    if (vacio) {
+        Administrador admin("admin", "12345");
+        vector<string> lineas;
+        lineas.push_back(admin.serializar());
+        escribirLineas(rutaUsuarios(), lineas);
+    } else {
+        vector<Usuario*> lista = cargarUsuarios(); // valida el formato
+        liberarUsuarios(lista);
+    }
+}
+
+Usuario* iniciarSesion(const string& nombre, const string& clave) {
+    vector<Usuario*> lista = cargarUsuarios();
+    Usuario* encontrado = 0;
+    for (size_t i = 0; i < lista.size(); i++) {
+        if (lista[i]->getNombreUsuario() == nombre && lista[i]->autenticar(clave)) {
+            encontrado = lista[i];
+            lista.erase(lista.begin() + i);
+            break;
+        }
+    }
+    liberarUsuarios(lista);
+    if (encontrado == 0) throw invalid_argument("Credenciales incorrectas.");
+    return encontrado;
+}
+
+static void listarUsuarios() {
+    vector<Usuario*> lista = cargarUsuarios();
+    cout << "\n=== USUARIOS (" << lista.size() << ") ===\n";
+    for (size_t i = 0; i < lista.size(); i++) {
+        cout << lista[i]->getNombreUsuario() << " | " << lista[i]->getRol();
+        if (lista[i]->getRol() == "Recepcionista")
+            cout << " | Turno: " << lista[i]->getDatoExtra();
+        cout << "\n";
+    }
+    liberarUsuarios(lista);
+}
+
+static void crearUsuarioMenu() {
+    string nombre = leerTextoObligatorio("Nombre de usuario: ");
+    string clave = leerTextoObligatorio("Contrasena: ");
+    int tipo = leerEntero("Tipo (1=Administrador, 2=Recepcionista): ", 1, 2);
+    string turno = "";
+    if (tipo == 2) turno = leerTextoObligatorio("Turno (Diurno/Nocturno): ");
+
+    vector<Usuario*> lista = cargarUsuarios();
+    try {
+        if (buscarUsuario(lista, nombre) != -1)
+            throw invalid_argument("Ya existe un usuario con ese nombre.");
+        if (tipo == 1) lista.push_back(crearUsuario(nombre, clave, "Administrador", ""));
+        else lista.push_back(crearUsuario(nombre, clave, "Recepcionista", turno));
+        guardarUsuarios(lista);
+    } catch (...) {
+        liberarUsuarios(lista);
+        throw;
+    }
+    liberarUsuarios(lista);
+    cout << "Usuario creado y guardado.\n";
+}
+
+static void editarUsuarioMenu() {
+    string nombre = leerTextoObligatorio("Usuario a editar: ");
+    vector<Usuario*> lista = cargarUsuarios();
+    try {
+        int pos = buscarUsuario(lista, nombre);
+        if (pos == -1) throw invalid_argument("No existe ese usuario.");
+        Usuario* u = lista[pos];
+        string nuevoNombre = leerTexto("Nuevo nombre de usuario (Enter para dejarlo igual): ");
+        if (!nuevoNombre.empty() && nuevoNombre != nombre) {
+            if (buscarUsuario(lista, nuevoNombre) != -1)
+                throw invalid_argument("Ya existe un usuario con ese nombre.");
+            u->cambiarNombre(nuevoNombre);
+        }
+        string clave = leerTexto("Nueva contrasena (Enter para dejarla igual): ");
+        if (!clave.empty()) u->cambiarContrasena(clave);
+        if (u->getRol() == "Recepcionista") {
+            string turno = leerTexto("Nuevo turno (Enter para dejarlo igual): ");
+            if (!turno.empty()) u->setDatoExtra(turno);
+        }
+        guardarUsuarios(lista);
+    } catch (...) {
+        liberarUsuarios(lista);
+        throw;
+    }
+    liberarUsuarios(lista);
+    cout << "Usuario actualizado.\n";
+}
+
+static void eliminarUsuarioMenu(const Usuario& actual) {
+    string nombre = leerTextoObligatorio("Usuario a eliminar: ");
+    if (nombre == actual.getNombreUsuario())
+        throw invalid_argument("No puedes eliminar tu propio usuario.");
+
+    vector<Usuario*> lista = cargarUsuarios();
+    try {
+        int pos = buscarUsuario(lista, nombre);
+        if (pos == -1) throw invalid_argument("No existe ese usuario.");
+        int admins = 0;
+        for (size_t i = 0; i < lista.size(); i++)
+            if (lista[i]->getRol() == "Administrador") admins++;
+        if (lista[pos]->getRol() == "Administrador" && admins <= 1)
+            throw invalid_argument("Debe quedar al menos un administrador.");
+        if (confirmar("Eliminar al usuario " + nombre)) {
+            delete lista[pos];
+            lista.erase(lista.begin() + pos);
+            guardarUsuarios(lista);
+            cout << "Usuario eliminado.\n";
+        } else {
+            cout << "Operacion cancelada.\n";
+        }
+    } catch (...) {
+        liberarUsuarios(lista);
+        throw;
+    }
+    liberarUsuarios(lista);
+}
+
+void menuUsuarios(const Usuario& actual) {
+    if (!actual.tienePermiso("usuarios")) {
+        cout << "Acceso denegado para este rol.\n";
+        return;
+    }
+    int opcion;
+    do {
+        cout << "\n=== GESTION DE USUARIOS ===\n"
+             << "1. Crear usuario\n"
+             << "2. Listar usuarios\n"
+             << "3. Editar usuario\n"
+             << "4. Eliminar usuario\n"
+             << "0. Volver\n";
+        opcion = leerOpcion();
+        try {
+            switch (opcion) {
+                case 1: crearUsuarioMenu(); break;
+                case 2: listarUsuarios(); break;
+                case 3: editarUsuarioMenu(); break;
+                case 4: eliminarUsuarioMenu(actual); break;
+                case 0: break;
+                default: cout << "Opcion no valida.\n";
+            }
+        } catch (const exception& e) {
+            cout << "Error: " << e.what() << "\n";
+        }
+    } while (opcion != 0);
+}
+
+
+========================================
+ARCHIVO: source\habitacion.cpp
+========================================
+#include "../header/habitacion.h"
+#include <cmath>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+using namespace std;
+
+static bool codigoValido(const string& codigo) {
+    return !codigo.empty() &&
+           codigo.find_first_not_of(" \t") != string::npos &&
+           codigo.find_first_of(",\r\n") == string::npos;
+}
+
+Habitacion::Habitacion()
+    : codigo(""), tipo(TipoHabitacion::Sencilla), capacidad(0),
+      precioPorNoche(0), estado(EstadoHabitacion::Disponible) {}
+
+Habitacion::Habitacion(string codigo, TipoHabitacion tipo, int capacidad,
+                       double precioPorNoche, EstadoHabitacion estado)
+    : codigo(codigo), tipo(tipo), capacidad(capacidad),
+      precioPorNoche(precioPorNoche), estado(estado) {
+    if (!codigoValido(codigo))
+        throw invalid_argument("El codigo de habitacion no es valido.");
+    actualizarDatos(tipo, capacidad, precioPorNoche);
+}
+
+string Habitacion::getCodigo() const { return codigo; }
+TipoHabitacion Habitacion::getTipo() const { return tipo; }
+int Habitacion::getCapacidad() const { return capacidad; }
+double Habitacion::getPrecioPorNoche() const { return precioPorNoche; }
+EstadoHabitacion Habitacion::getEstado() const { return estado; }
+
+void Habitacion::actualizarDatos(TipoHabitacion nuevoTipo, int nuevaCapacidad,
+                                double nuevoPrecio) {
+    if (nuevaCapacidad <= 0)
+        throw invalid_argument("La capacidad debe ser positiva.");
+    if (!isfinite(nuevoPrecio) || nuevoPrecio <= 0)
+        throw invalid_argument("La tarifa por noche debe ser positiva.");
+    tipo = nuevoTipo;
+    capacidad = nuevaCapacidad;
+    precioPorNoche = nuevoPrecio;
+}
+
+void Habitacion::cambiarEstado(EstadoHabitacion nuevoEstado) {
+    estado = nuevoEstado;
+}
+
+// Esto NO revisa cruces de fechas: eso se agregara con Reserva.
+bool Habitacion::estaOperativa() const {
+    return estado == EstadoHabitacion::Disponible;
+}
+
+string Habitacion::nombreTipo(TipoHabitacion tipo) {
+    switch (tipo) {
+        case TipoHabitacion::Sencilla: return "Sencilla";
+        case TipoHabitacion::Doble: return "Doble";
+        case TipoHabitacion::Familiar: return "Familiar";
+        case TipoHabitacion::Suite: return "Suite";
+        case TipoHabitacion::Otra: return "Otra";
+    }
+    throw invalid_argument("Tipo de habitacion invalido.");
+}
+
+string Habitacion::nombreEstado(EstadoHabitacion estado) {
+    switch (estado) {
+        case EstadoHabitacion::Disponible: return "Disponible";
+        case EstadoHabitacion::Mantenimiento: return "Mantenimiento";
+        case EstadoHabitacion::FueraDeServicio: return "Fuera de servicio";
+    }
+    throw invalid_argument("Estado de habitacion invalido.");
+}
+
+string Habitacion::serializar() const {
+    if (!codigoValido(codigo) || capacidad <= 0 ||
+        !isfinite(precioPorNoche) || precioPorNoche <= 0)
+        throw invalid_argument("No puedes guardar una habitacion incompleta.");
+    ostringstream salida;
+    salida.precision(17);
+    salida << codigo << ',' << nombreTipo(tipo) << ',' << capacidad << ','
+           << precioPorNoche << ',' << nombreEstado(estado);
+    return salida.str();
+}
+
+Habitacion Habitacion::deserializar(const string& linea) {
+    stringstream entrada(linea);
+    vector<string> campos;
+    string campo;
+    while (getline(entrada, campo, ',')) campos.push_back(campo);
+    if (campos.size() != 5)
+        throw invalid_argument("La linea CSV debe tener 5 campos.");
+
+    if (campos[1] != "Sencilla" && campos[1] != "Doble" &&
+        campos[1] != "Familiar" && campos[1] != "Suite" &&
+        campos[1] != "Otra")
+        throw invalid_argument("Tipo desconocido en el archivo.");
+
+    size_t usadosCapacidad = 0, usadosPrecio = 0;
+    int capacidad = stoi(campos[2], &usadosCapacidad);
+    double precio = stod(campos[3], &usadosPrecio);
+    if (usadosCapacidad != campos[2].size() || usadosPrecio != campos[3].size())
+        throw invalid_argument("Capacidad o precio con caracteres invalidos.");
+
+    return Habitacion(campos[0], convertirTipoHabitacion(campos[1]),
+                      capacidad, precio, convertirEstadoHabitacion(campos[4]));
+}
+
+
+========================================
+ARCHIVO: source\Huesped.cpp
+========================================
+#include "../header/huesped.h"
+#include <stdexcept>
+#include <sstream>
+using namespace std;
+
+Huesped::Huesped() {}
+Huesped::Huesped(string documento, string nombre, string telefono, string correo)
+    : documento(documento) {
+    actualizarDatos(nombre, telefono, correo);
+    validar();
+}
+Huesped::~Huesped() {}
+
+void Huesped::validar() const {
+    if (documento.empty() || nombre.empty() || telefono.empty() || correo.empty())
+        throw invalid_argument("Todos los datos del huesped son obligatorios.");
+    if (correo.find('@') == string::npos)
+        throw invalid_argument("El correo del huesped no es valido.");
+    if (documento.find_first_of(",\r\n") != string::npos ||
+        nombre.find_first_of(",\r\n") != string::npos ||
+        telefono.find_first_of(",\r\n") != string::npos ||
+        correo.find_first_of(",\r\n") != string::npos)
+        throw invalid_argument("Los datos del huesped no pueden contener comas ni saltos de linea.");
+}
+
+string Huesped::serializar() const {
+    validar();
+    return documento + "," + nombre + "," + telefono + "," + correo;
+}
+
+void Huesped::deserializar(string linea) {
+    stringstream ss(linea);
+    string d, n, t, c;
+    if (!getline(ss, d, ',') || !getline(ss, n, ',') ||
+        !getline(ss, t, ',') || !getline(ss, c) ||
+        c.find(',') != string::npos)
+        throw invalid_argument("La linea del huesped tiene un formato incorrecto.");
+    if (!c.empty() && c.back() == '\r') c.pop_back();
+    Huesped temporal(d, n, t, c); // Valida primero: no modifica el objeto si falla.
+    documento = temporal.documento;
+    nombre = temporal.nombre;
+    telefono = temporal.telefono;
+    correo = temporal.correo;
+}
+
+string Huesped::getDocumento() const { return documento; }
+string Huesped::getNombre() const { return nombre; }
+string Huesped::getTelefono() const { return telefono; }
+string Huesped::getCorreo() const { return correo; }
+
+void Huesped::actualizarDatos(string nuevoNombre, string nuevoTelefono, string nuevoCorreo) {
+    if (nuevoNombre.empty() || nuevoTelefono.empty() || nuevoCorreo.empty())
+        throw invalid_argument("Todos los datos del huesped son obligatorios.");
+    if (nuevoCorreo.find('@') == string::npos)
+        throw invalid_argument("El correo del huesped no es valido.");
+    if (nuevoNombre.find_first_of(",\r\n") != string::npos ||
+        nuevoTelefono.find_first_of(",\r\n") != string::npos ||
+        nuevoCorreo.find_first_of(",\r\n") != string::npos)
+        throw invalid_argument("Los datos no pueden contener comas ni saltos de linea.");
+    nombre = nuevoNombre;
+    telefono = nuevoTelefono;
+    correo = nuevoCorreo;
+}
+
+
+========================================
+ARCHIVO: source\Lavanderia.cpp
+========================================
+#include "../header/Lavanderia.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+#include <sstream>
+
+using namespace std;
+
+Lavanderia::Lavanderia() : Servicio(), recargoUrgente(0.0), urgente(false) {}
+
+Lavanderia::Lavanderia(string codigo, string nombre, string desc, double precio,
+                       bool activo, double recargoUrgente, bool urgente)
+    : Servicio(codigo, nombre, desc, precio, activo),
+      recargoUrgente(recargoUrgente), urgente(urgente) {
+    if (recargoUrgente < 0)
+        throw invalid_argument("El recargo urgente no puede ser negativo.");
+}
+
+double Lavanderia::getRecargoUrgente() const { return recargoUrgente; }
+bool Lavanderia::isUrgente() const { return urgente; }
+
+string Lavanderia::getCategoria() const {
+    return urgente ? "Lavanderia Urgente" : "Lavanderia Estandar";
+}
+
+string Lavanderia::getTipoServicio() const { return "Lavanderia"; }
+
+// Costo = precio por prenda; si es urgente se suma el recargo por cada prenda.
+double Lavanderia::calcularCosto(int cantidad) const {
+    if (cantidad <= 0) throw invalid_argument("La cantidad de prendas debe ser mayor a cero.");
+    if (!activo) throw invalid_argument("El servicio de lavanderia esta inactivo.");
+    double subtotal = precio * cantidad;
+    if (urgente) {
+        subtotal += recargoUrgente * cantidad;
+    }
+    return subtotal;
+}
+
+string Lavanderia::describir() const {
+    string detalle = "[" + codigo + "] " + nombre + " (" + getCategoria() + ") - $" + dinero(precio) + " por prenda";
+    if (urgente) detalle += " + $" + dinero(recargoUrgente) + " de recargo por prenda";
+    return detalle;
+}
+
+string Lavanderia::serializar() const {
+    return Servicio::serializar() + "," + to_string(recargoUrgente) + "," + (urgente ? "1" : "0");
+}
+
+void Lavanderia::deserializar(const string& linea) {
+    stringstream ss(linea);
+    string tipo, cod, nom, d, precStr, actStr, recStr, urgStr;
+    if (!getline(ss, tipo, ',') || !getline(ss, cod, ',') ||
+        !getline(ss, nom, ',') || !getline(ss, d, ',') ||
+        !getline(ss, precStr, ',') || !getline(ss, actStr, ',') ||
+        !getline(ss, recStr, ',') || !getline(ss, urgStr)) {
+        throw invalid_argument("Formato CSV invalido para Lavanderia.");
+    }
+    if (!urgStr.empty() && urgStr.back() == '\r') urgStr.pop_back();
+    if (tipo != "Lavanderia")
+        throw invalid_argument("La linea no corresponde a un servicio de Lavanderia.");
+
+    Lavanderia temp(cod, nom, d, stod(precStr), actStr == "1", stod(recStr), urgStr == "1");
+    *this = temp;
+}
+
+
+========================================
+ARCHIVO: source\menu.cpp
+========================================
+#include "../header/menu.h"
+#include "../header/gestionUsuarios.h"
+#include "../header/gestionHuespedes.h"
+#include "../header/gestionHabitaciones.h"
+#include "../header/gestionReservas.h"
+#include "../header/gestionServicios.h"
+#include "../header/gestionConsumos.h"
+#include "../header/gestionFacturas.h"
+#include "../header/gestionReportes.h"
+#include "../header/utilidades.h"
+#include <iostream>
+using namespace std;
+
+// Menu del administrador: ve todos los modulos.
+static void menuAdministrador(const Usuario& usuario) {
+    int opcion;
+    do {
+        cout << "\n=== MENU PRINCIPAL (ADMINISTRADOR) ===\n"
+             << "1. Gestion de usuarios\n"
+             << "2. Habitaciones\n"
+             << "3. Huespedes\n"
+             << "4. Reservas\n"
+             << "5. Servicios\n"
+             << "6. Consumos de servicios\n"
+             << "7. Facturacion\n"
+             << "8. Reportes\n"
+             << "0. Cerrar sesion\n";
+        opcion = leerOpcion();
+        switch (opcion) {
+            case 1: menuUsuarios(usuario); break;
+            case 2: menuHabitaciones(usuario); break;
+            case 3: menuHuespedes(); break;
+            case 4: menuReservas(); break;
+            case 5: menuServicios(usuario); break;
+            case 6: menuConsumos(); break;
+            case 7: menuFacturacion(); break;
+            case 8: menuReportes(usuario); break;
+            case 0: cout << "Cerrando sesion...\n"; break;
+            default: cout << "Opcion no valida.\n";
+        }
+    } while (opcion != 0);
+}
+
+// Menu del recepcionista: solo ve lo que puede usar, numerado desde 1.
+static void menuRecepcionista(const Usuario& usuario) {
+    int opcion;
+    do {
+        cout << "\n=== MENU PRINCIPAL (RECEPCIONISTA) ===\n"
+             << "1. Consulta de habitaciones\n"
+             << "2. Huespedes\n"
+             << "3. Reservas\n"
+             << "4. Consumos de servicios\n"
+             << "5. Facturacion\n"
+             << "0. Cerrar sesion\n";
+        opcion = leerOpcion();
+        switch (opcion) {
+            case 1: menuHabitaciones(usuario); break;
+            case 2: menuHuespedes(); break;
+            case 3: menuReservas(); break;
+            case 4: menuConsumos(); break;
+            case 5: menuFacturacion(); break;
+            case 0: cout << "Cerrando sesion...\n"; break;
+            default: cout << "Opcion no valida.\n";
+        }
+    } while (opcion != 0);
+}
+
+void menuPrincipal(const Usuario& usuario) {
+    cout << "\nBienvenido, " << usuario.descripcionRol() << "\n";
+    if (usuario.getRol() == "Administrador") menuAdministrador(usuario);
+    else menuRecepcionista(usuario);
+}
+
+
+========================================
+ARCHIVO: source\Parqueadero.cpp
+========================================
+#include "../header/Parqueadero.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+#include <sstream>
+
+using namespace std;
+
+Parqueadero::Parqueadero() : Servicio(), tipoVehiculo("") {}
+
+Parqueadero::Parqueadero(string codigo, string nombre, string descripcion,
+                         double precio, bool activo, string tipoVehiculo)
+    : Servicio(codigo, nombre, descripcion, precio, activo), tipoVehiculo(tipoVehiculo) {
+    if (tipoVehiculo.empty() || tipoVehiculo.find_first_of(",\r\n") != string::npos)
+        throw invalid_argument("El tipo de vehiculo es obligatorio y no puede contener comas.");
+}
+
+string Parqueadero::getTipoVehiculo() const { return tipoVehiculo; }
+string Parqueadero::getUnidadCobro() const { return "dia"; }
+string Parqueadero::getTipoServicio() const { return "Parqueadero"; }
+
+string Parqueadero::describir() const {
+    return "[" + codigo + "] " + nombre + " (" + tipoVehiculo + ") - $" +
+           dinero(precio) + " por " + getUnidadCobro();
+}
+
+// Costo = precio por dia por la cantidad de dias.
+double Parqueadero::calcularCosto(int cantidad) const {
+    if (cantidad <= 0) throw invalid_argument("La cantidad de dias debe ser mayor a cero.");
+    if (!activo) throw invalid_argument("El servicio de parqueadero esta inactivo.");
+    return precio * cantidad;
+}
+
+string Parqueadero::serializar() const {
+    return Servicio::serializar() + "," + tipoVehiculo;
+}
+
+void Parqueadero::deserializar(const string& linea) {
+    stringstream ss(linea);
+    string tipo, cod, nom, d, precStr, actStr, vehiculo;
+    if (!getline(ss, tipo, ',') || !getline(ss, cod, ',') ||
+        !getline(ss, nom, ',') || !getline(ss, d, ',') ||
+        !getline(ss, precStr, ',') || !getline(ss, actStr, ',') ||
+        !getline(ss, vehiculo)) {
+        throw invalid_argument("Formato CSV invalido para Parqueadero.");
+    }
+    if (!vehiculo.empty() && vehiculo.back() == '\r') vehiculo.pop_back();
+    if (tipo != "Parqueadero")
+        throw invalid_argument("La linea no corresponde a un servicio de Parqueadero.");
+
+    Parqueadero temp(cod, nom, d, stod(precStr), actStr == "1", vehiculo);
+    *this = temp;
+}
+
+
+========================================
+ARCHIVO: source\recepcionista.cpp
+========================================
+#include "../header/recepcionista.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+using namespace std;
+
+Recepcionista::Recepcionista(string nombreUser, string contra, string turno)
+    : Usuario(nombreUser, contra, "Recepcionista"), turno(turno) {
+    if (!textoValido(turno))
+        throw invalid_argument("El turno es obligatorio y no puede tener comas.");
+}
+
+// Atiende huespedes, reservas, consumos y facturas.
+// No administra usuarios, inventario de habitaciones, servicios ni reportes.
+bool Recepcionista::tienePermiso(string operacion) const {
+    return operacion == "habitaciones_consultar" || operacion == "huespedes" ||
+           operacion == "reservas" || operacion == "consumos" ||
+           operacion == "facturacion";
+}
+
+string Recepcionista::descripcionRol() const {
+    return "Recepcionista (turno " + turno + ")";
+}
+
+string Recepcionista::serializar() const {
+    return nombreUsuario + "," + contrasena + ",Recepcionista," + turno;
+}
+
+string Recepcionista::getDatoExtra() const { return turno; }
+
+void Recepcionista::setDatoExtra(string dato) {
+    if (!textoValido(dato))
+        throw invalid_argument("El turno es obligatorio y no puede tener comas.");
+    turno = dato;
+}
+
+string Recepcionista::getTurno() const { return turno; }
+
+
+========================================
+ARCHIVO: source\reserva.cpp
+========================================
+#include "../header/reserva.h"
+#include "../header/Fecha.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+#include <vector>
+using namespace std;
+
+Reserva::Reserva() : personas(0), tarifaPorNoche(0), estado(EstadoReserva::Pendiente) {}
+
+Reserva::Reserva(string codigo, string documentoHuesped, string codigoHabitacion,
+                 string fechaEntrada, string fechaSalida, int personas,
+                 double tarifaPorNoche, EstadoReserva estado)
+    : codigo(codigo), documentoHuesped(documentoHuesped),
+      codigoHabitacion(codigoHabitacion), fechaEntrada(fechaEntrada),
+      fechaSalida(fechaSalida), personas(personas),
+      tarifaPorNoche(tarifaPorNoche), estado(estado) {
+    validar();
+}
+
+string Reserva::getCodigo() const { return codigo; }
+string Reserva::getDocumentoHuesped() const { return documentoHuesped; }
+string Reserva::getCodigoHabitacion() const { return codigoHabitacion; }
+string Reserva::getFechaEntrada() const { return fechaEntrada; }
+string Reserva::getFechaSalida() const { return fechaSalida; }
+int Reserva::getPersonas() const { return personas; }
+double Reserva::getTarifaPorNoche() const { return tarifaPorNoche; }
+EstadoReserva Reserva::getEstado() const { return estado; }
+bool Reserva::estaActiva() const { return estado != EstadoReserva::Cancelada; }
+
+void Reserva::validar() const {
+    if (!textoValido(codigo) || !textoValido(documentoHuesped) || !textoValido(codigoHabitacion))
+        throw invalid_argument("Codigo, documento y habitacion son obligatorios y no pueden tener comas.");
+    if (personas <= 0)
+        throw invalid_argument("La reserva debe tener al menos una persona.");
+    if (tarifaPorNoche <= 0)
+        throw invalid_argument("La tarifa por noche debe ser mayor que cero.");
+    Fecha::diasEntre(fechaEntrada, fechaSalida); // lanza error si las fechas no sirven
+}
+
+int Reserva::calcularNoches() const {
+    return Fecha::diasEntre(fechaEntrada, fechaSalida);
+}
+
+double Reserva::calcularValorEstimado() const {
+    return calcularNoches() * tarifaPorNoche;
+}
+
+// Dos reservas chocan si son de la misma habitacion, ambas estan activas y las fechas se cruzan.
+bool Reserva::seSuperponeCon(const Reserva& otra) const {
+    if (!estaActiva() || !otra.estaActiva()) return false;
+    if (codigoHabitacion != otra.codigoHabitacion) return false;
+    return Fecha::seSuperponen(fechaEntrada, fechaSalida, otra.fechaEntrada, otra.fechaSalida);
+}
+
+void Reserva::cambiarFechas(string nuevaEntrada, string nuevaSalida) {
+    if (!estaActiva()) throw invalid_argument("No puedes editar una reserva cancelada.");
+    Fecha::diasEntre(nuevaEntrada, nuevaSalida);
+    fechaEntrada = nuevaEntrada;
+    fechaSalida = nuevaSalida;
+}
+
+void Reserva::cambiarPersonas(int nuevasPersonas) {
+    if (!estaActiva()) throw invalid_argument("No puedes editar una reserva cancelada.");
+    if (nuevasPersonas <= 0) throw invalid_argument("Debe haber al menos una persona.");
+    personas = nuevasPersonas;
+}
+
+void Reserva::cancelar() {
+    if (!estaActiva()) throw invalid_argument("Esta reserva ya estaba cancelada.");
+    estado = EstadoReserva::Cancelada;
+}
+
+string Reserva::nombreEstado(EstadoReserva estado) {
+    if (estado == EstadoReserva::Pendiente) return "Pendiente";
+    if (estado == EstadoReserva::Confirmada) return "Confirmada";
+    return "Cancelada";
+}
+
+// Formato del CSV: codigo,documento,habitacion,entrada,salida,personas,tarifa,estado
+string Reserva::serializar() const {
+    validar();
+    return codigo + "," + documentoHuesped + "," + codigoHabitacion + "," +
+           fechaEntrada + "," + fechaSalida + "," + to_string(personas) + "," +
+           to_string(tarifaPorNoche) + "," + nombreEstado(estado);
+}
+
+Reserva Reserva::deserializar(const string& linea) {
+    vector<string> c = dividirCampos(linea);
+    if (c.size() != 8)
+        throw invalid_argument("La linea de reserva debe tener 8 campos.");
+    int personas = 0;
+    double tarifa = 0;
+    try {
+        personas = stoi(c[5]);
+        tarifa = stod(c[6]);
+    } catch (...) {
+        throw invalid_argument("Personas o tarifa con formato incorrecto.");
+    }
+    return Reserva(c[0], c[1], c[2], c[3], c[4], personas, tarifa,
+                   convertirEstadoReserva(c[7]));
+}
+
+
+========================================
+ARCHIVO: source\Servicio.cpp
+========================================
+#include "../header/Servicio.h"
+#include <stdexcept>
+
+using namespace std;
+
+Servicio::Servicio() : codigo(""), nombre(""), desc(""), precio(0.0), activo(false) {}
+
+Servicio::Servicio(string codigo, string nombre, string desc, double precio, bool activo)
+    : codigo(codigo), nombre(nombre), desc(desc), precio(precio), activo(activo) {
+    validar();
+}
+
+void Servicio::activar() { activo = true; }
+void Servicio::desactivar() { activo = false; }
+
+// Cambia nombre, descripcion y precio. Si algo es invalido, deja los datos como estaban.
+void Servicio::actualizarDatos(string nuevoNombre, string nuevaDesc, double nuevoPrecio) {
+    string nombreViejo = nombre;
+    string descViejo = desc;
+    double precioViejo = precio;
+    nombre = nuevoNombre;
+    desc = nuevaDesc;
+    precio = nuevoPrecio;
+    try {
+        validar();
+    } catch (...) {
+        nombre = nombreViejo;
+        desc = descViejo;
+        precio = precioViejo;
+        throw;
+    }
+}
+
+void Servicio::validar() const {
+    if (codigo.empty() || nombre.empty())
+        throw invalid_argument("El codigo y el nombre del servicio son obligatorios.");
+    if (precio <= 0)
+        throw invalid_argument("El precio del servicio debe ser mayor a cero.");
+    if (codigo.find_first_of(",\r\n") != string::npos ||
+        nombre.find_first_of(",\r\n") != string::npos ||
+        desc.find_first_of(",\r\n") != string::npos) {
+        throw invalid_argument("Los datos del servicio no pueden contener comas ni saltos de linea.");
+    }
+}
+
+string Servicio::serializar() const {
+    validar();
+    return getTipoServicio() + "," + codigo + "," + nombre + "," + desc + "," +
+           to_string(precio) + "," + (activo ? "1" : "0");
+}
+
+string Servicio::getCodigo() const { return codigo; }
+string Servicio::getNombre() const { return nombre; }
+string Servicio::getDesc() const { return desc; }
+double Servicio::getPrecio() const { return precio; }
+bool Servicio::isActivo() const { return activo; }
+
+
+========================================
+ARCHIVO: source\usuario.cpp
+========================================
+#include "../header/usuario.h"
+#include "../header/utilidades.h"
+#include <stdexcept>
+using namespace std;
+
+Usuario::Usuario(string nombreUsuario, string contrasena, string rol)
+    : nombreUsuario(nombreUsuario), contrasena(contrasena), rol(rol) {
+    if (!textoValido(nombreUsuario) || !textoValido(contrasena))
+        throw invalid_argument("El usuario y la contrasena son obligatorios y no pueden tener comas.");
+}
+
+string Usuario::getDatoExtra() const { return ""; }
+void Usuario::setDatoExtra(string dato) {}
+
+bool Usuario::autenticar(string clave) const {
+    return contrasena == clave;
+}
+
+void Usuario::cambiarContrasena(string nueva) {
+    if (!textoValido(nueva))
+        throw invalid_argument("La contrasena es obligatoria y no puede tener comas.");
+    contrasena = nueva;
+}
+
+void Usuario::cambiarNombre(string nuevo) {
+    if (!textoValido(nuevo))
+        throw invalid_argument("El nombre de usuario es obligatorio y no puede tener comas.");
+    nombreUsuario = nuevo;
+}
+
+
+// Getters
+string Usuario::getNombreUsuario() const { return nombreUsuario; }
+string Usuario::getContra() const { return contrasena; }
+string Usuario::getRol() const { return rol; }
+
+
+========================================
+ARCHIVO: source\utilidades.cpp
+========================================
+#include "../header/utilidades.h"
+
+#include <cctype> // Esta libreria sirve para usar la funcion tolower() que convierte un caracter a minuscula
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+using namespace std;
+
+bool textoValido(const string& texto) {
+	if (texto.find_first_not_of(" \t") == string::npos) return false; ///< Verifica si el texto es solo espacios o tabulaciones
+    if (texto.find_first_of(",\r\n") != string::npos) return false; ///< Verifica si el texto contiene comas, saltos de linea o el \r (retorno de carro)
+    return true; 
+}
+
+string aMinusculas(string texto) {
+    for (size_t i = 0; i < texto.size(); i++)
+        texto[i] = (char)tolower((unsigned char)texto[i]); ///< Convierte cada caracter a minuscula usando la funcion tolower()
+    return texto;
+}
+
+// Muestra el valor sin decimales.
+string dinero(double valor) {
+	long long entero = (long long)(valor + 0.5); ///< Redondea el valor a su entero mÃ¡s cercano
+    return to_string(entero);
+}
+
+// Crea codigos como R001, F002, C003...
+string generarCodigo(const string& prefijo, int numero) {
+    string texto = to_string(numero);
+	while (texto.size() < 3) texto = "0" + texto;  ///< Agrega ceros a la izquierda hasta que el tamaÃ±o del texto sea 3
+    return prefijo + texto;
+}
+
+// Los archivos siempre se buscan en la carpeta Persistencia del proyecto.
+string rutaArchivo(const string& nombre) {
+#ifdef HOTEL_PROJECT_ROOT
+	return string(HOTEL_PROJECT_ROOT) + "/Persistencia/" + nombre;  ///< Devuelve la ruta completa del archivo en la carpeta Persistencia del proyecto
+#else
+	return "Persistencia/" + nombre; ///< Si no se define la macro HOTEL_PROJECT_ROOT, devuelve la ruta relativa a la carpeta Persistencia
+#endif
+}
+
+bool existeArchivo(const string& ruta) {
+    ifstream archivo(ruta.c_str());
+    return archivo.is_open();
+}
+
+vector<string> leerLineas(const string& ruta) {
+    ifstream archivo(ruta.c_str());
+    if (!archivo.is_open())
+        throw runtime_error("No se pudo abrir el archivo: " + ruta);
+    vector<string> lineas;
+    string linea;
+    while (getline(archivo, linea)) {
+        if (!linea.empty() && linea[linea.size() - 1] == '\r')
+            linea.erase(linea.size() - 1);
+        if (!linea.empty()) lineas.push_back(linea);
+    }
+    return lineas;
+}
+
+void escribirLineas(const string& ruta, const vector<string>& lineas) {
+    ofstream archivo(ruta.c_str(), ios::trunc);
+    if (!archivo.is_open())
+        throw runtime_error("No se pudo escribir el archivo: " + ruta);
+    for (size_t i = 0; i < lineas.size(); i++)
+        archivo << lineas[i] << "\n";
+    archivo.flush();
+    if (!archivo)
+        throw runtime_error("Error al guardar el archivo: " + ruta);
+}
+
+vector<string> dividirCampos(const string& linea) {
+    vector<string> campos;
+    string campo;
+    istringstream ss(linea);
+    while (getline(ss, campo, ',')) campos.push_back(campo);
+    if (!linea.empty() && linea[linea.size() - 1] == ',') campos.push_back("");
+    return campos;
+}
+
+int leerOpcion() {
+    while (true) {
+        cout << "Seleccione una opcion: ";
+        string texto;
+        if (!getline(cin, texto)) return 0;
+        istringstream ss(texto);
+        int valor;
+        char sobra;
+        if ((ss >> valor) && !(ss >> sobra)) return valor;
+        cout << "Escribe un numero valido.\n";
+    }
+}
+
+// Flujo de entrada de datos por la consola
+string leerTexto(const string& mensaje) {
+    cout << mensaje;
+    string valor;
+    if (!getline(cin, valor))
+        throw runtime_error("Se interrumpio la entrada de datos.");
+    return valor;
+}
+
+string leerTextoObligatorio(const string& mensaje) {
+    string valor = leerTexto(mensaje);
+    if (!textoValido(valor))
+        throw invalid_argument("El dato es obligatorio y no puede contener comas.");
+    return valor;
+}
+
+int leerEntero(const string& mensaje, int minimo, int maximo) {
+    string texto = leerTexto(mensaje);
+    istringstream ss(texto);
+    int valor;
+    char sobra;
+    if (!(ss >> valor) || (ss >> sobra) || valor < minimo || valor > maximo)
+        throw invalid_argument("Escribe un numero entero entre " + to_string(minimo) +
+                               " y " + to_string(maximo) + ".");
+    return valor;
+}
+
+double leerDecimal(const string& mensaje, double minimoExclusivo) {
+    string texto = leerTexto(mensaje);
+    istringstream ss(texto);
+    double valor;
+    char sobra;
+    if (!(ss >> valor) || (ss >> sobra) || valor <= minimoExclusivo)
+        throw invalid_argument("Escribe un numero mayor que " + to_string((long long)minimoExclusivo) + ".");
+    return valor;
+}
+
+bool confirmar(const string& mensaje) {
+    string texto = leerTexto(mensaje + " (S/N): ");
+    return texto == "S" || texto == "s";
+}
+
+

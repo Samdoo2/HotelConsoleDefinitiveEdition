@@ -17,6 +17,16 @@
 
 using namespace std;
 
+
+/***
+* @file main.cpp
+* @brief Programa principal del sistema de hotel
+* 
+*
+*
+*
+*/
+
 /**
  * @brief muestra la contraseña en asteriscos
  * @return retorna la contraseña como string
