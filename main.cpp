@@ -21,6 +21,7 @@ using namespace std;
  *  
  *  @return La contraseña como un string
  */
+//y van pasando los caracoles
 
 string leerContrasena() {
     string clave;
