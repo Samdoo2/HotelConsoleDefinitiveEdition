@@ -17,7 +17,11 @@
 
 using namespace std;
 
-// Lee la contrasena mostrando asteriscos.
+/**
+ * @brief muestra la contraseña en asteriscos
+ * @return retorna la contraseña como string
+ */
+
 string leerContrasena() {
     string clave;
     int tecla;
