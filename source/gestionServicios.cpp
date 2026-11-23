@@ -15,7 +15,8 @@ static Servicio* crearServicioDesdeLinea(const string& linea) {
     if (c.empty()) throw invalid_argument("Linea de servicio vacia.");
     if (c[0] == "Alimentacion") {
         Alimentacion* s = new Alimentacion();
-        try { s->deserializar(linea); } catch (...) { delete s; throw; }
+		try { s->deserializar(linea); }
+		catch (...) { delete s; throw; } ///< Si hay error al deserializar, libera la memoria y lanza la excepcion
         return s;
     }
     if (c[0] == "Lavanderia") {
@@ -31,10 +32,20 @@ static Servicio* crearServicioDesdeLinea(const string& linea) {
     throw invalid_argument("Tipo de servicio desconocido: " + c[0]);
 }
 
+
+
+
+// Libera de la memoria RAM todos los servicios creados dinamicamente con 'new'
+// Se pasa por referencia (&) para vaciar la lista original y evitar fugas de memoria
 void liberarServicios(vector<Servicio*>& lista) {
+    // Destruye cada objeto real (Alimentacion, Lavanderia o Parqueadero) guardado en memoria dinamica
     for (size_t i = 0; i < lista.size(); i++) delete lista[i];
+
+    // Vacia el vector para no dejar direcciones de memoria invalidas (punteros colgantes)
     lista.clear();
 }
+
+
 
 static int buscarServicio(const vector<Servicio*>& lista, const string& codigo) {
     for (size_t i = 0; i < lista.size(); i++)

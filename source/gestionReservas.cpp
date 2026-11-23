@@ -85,6 +85,8 @@ vector<Habitacion> buscarHabitacionesLibres(const string& entrada, const string&
     return libres;
 }
 
+
+
 string estadoActualHabitacion(const Habitacion& h, const vector<Reserva>& reservas) {
     if (!h.estaOperativa()) return Habitacion::nombreEstado(h.getEstado());
     string hoy = Fecha::hoy();

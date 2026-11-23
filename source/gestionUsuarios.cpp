@@ -9,24 +9,29 @@ using namespace std;
 
 static string rutaUsuarios() { return rutaArchivo("usuarios.csv"); }
 
-// Fabrica: segun el rol crea el objeto hijo correspondiente (polimorfismo).
+// Fabrica: segun el rol crea el objeto hijo correspondiente
 static Usuario* crearUsuario(const string& nombre, const string& clave,
                              const string& rol, const string& turno) {
     if (rol == "Administrador" || rol == "Admin") return new Administrador(nombre, clave);
-    if (rol == "Recepcionista") return new Recepcionista(nombre, clave, turno);
+    if (rol == "Recepcionista" || rol == "Recep") return new Recepcionista(nombre, clave, turno);
     throw invalid_argument("Tipo de usuario invalido.");
 }
 
+
+// Libera de la memoria RAM todos los usuarios creados dinamicamente con 'new'
 static void liberarUsuarios(vector<Usuario*>& lista) {
     for (size_t i = 0; i < lista.size(); i++) delete lista[i];
     lista.clear();
 }
 
+
+// Busca un usuario por nombre y devuelve su posicion en el vector
 static int buscarUsuario(const vector<Usuario*>& lista, const string& nombre) {
     for (size_t i = 0; i < lista.size(); i++)
         if (lista[i]->getNombreUsuario() == nombre) return (int)i;
     return -1;
 }
+
 
 static vector<Usuario*> cargarUsuarios() {
     vector<string> lineas = leerLineas(rutaUsuarios());
@@ -55,7 +60,7 @@ static vector<Usuario*> cargarUsuarios() {
 static void guardarUsuarios(const vector<Usuario*>& lista) {
     vector<string> lineas;
     for (size_t i = 0; i < lista.size(); i++)
-        lineas.push_back(lista[i]->serializar()); // polimorfismo
+        lineas.push_back(lista[i]->serializar()); 
     escribirLineas(rutaUsuarios(), lineas);
 }
 
@@ -73,13 +78,15 @@ void inicializarArchivoUsuarios() {
     }
 }
 
+
+// Inicia sesion: busca el usuario por nombre y verifica la clave
 Usuario* iniciarSesion(const string& nombre, const string& clave) {
     vector<Usuario*> lista = cargarUsuarios();
     Usuario* encontrado = 0;
     for (size_t i = 0; i < lista.size(); i++) {
         if (lista[i]->getNombreUsuario() == nombre && lista[i]->autenticar(clave)) {
             encontrado = lista[i];
-            lista.erase(lista.begin() + i);
+			lista.erase(lista.begin() + i); ///< Remueve el usuario encontrado del vector para no liberarlo
             break;
         }
     }

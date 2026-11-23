@@ -27,14 +27,23 @@ static void menuAdministrador(const Usuario& usuario) {
              << "0. Cerrar sesion\n";
         opcion = leerOpcion();
         switch (opcion) {
-            case 1: menuUsuarios(usuario); break;
-            case 2: menuHabitaciones(usuario); break;
-            case 3: menuHuespedes(); break;
-            case 4: menuReservas(); break;
-            case 5: menuServicios(usuario); break;
-            case 6: menuConsumos(); break;
-            case 7: menuFacturacion(); break;
-            case 8: menuReportes(usuario); break;
+            case 1: 
+				system("cls");
+                menuUsuarios(usuario); break;
+            case 2: system("cls");
+                menuHabitaciones(usuario); break;
+            case 3: system("cls");
+                menuHuespedes(); break;
+            case 4: system("cls");
+                menuReservas(); break;
+            case 5: system("cls");
+                menuServicios(usuario); break;
+            case 6: system("cls");
+                menuConsumos(); break;
+            case 7: system("cls");
+                menuFacturacion(); break;
+            case 8: system("cls");
+                menuReportes(usuario); break;
             case 0: cout << "Cerrando sesion...\n"; break;
             default: cout << "Opcion no valida.\n";
         }
@@ -54,11 +63,16 @@ static void menuRecepcionista(const Usuario& usuario) {
              << "0. Cerrar sesion\n";
         opcion = leerOpcion();
         switch (opcion) {
-            case 1: menuHabitaciones(usuario); break;
-            case 2: menuHuespedes(); break;
-            case 3: menuReservas(); break;
-            case 4: menuConsumos(); break;
-            case 5: menuFacturacion(); break;
+            case 1: system("cls");
+                menuHabitaciones(usuario); break;
+            case 2: system("cls");
+                menuHuespedes(); break;
+            case 3: system("cls");
+                menuReservas(); break;
+            case 4: system("cls");
+                menuConsumos(); break;
+            case 5: system("cls");
+                menuFacturacion(); break;
             case 0: cout << "Cerrando sesion...\n"; break;
             default: cout << "Opcion no valida.\n";
         }

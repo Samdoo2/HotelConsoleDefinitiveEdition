@@ -17,6 +17,8 @@ Reserva::Reserva(string codigo, string documentoHuesped, string codigoHabitacion
     validar();
 }
 
+
+
 string Reserva::getCodigo() const { return codigo; }
 string Reserva::getDocumentoHuesped() const { return documentoHuesped; }
 string Reserva::getCodigoHabitacion() const { return codigoHabitacion; }
@@ -52,6 +54,9 @@ bool Reserva::seSuperponeCon(const Reserva& otra) const {
     return Fecha::seSuperponen(fechaEntrada, fechaSalida, otra.fechaEntrada, otra.fechaSalida);
 }
 
+
+
+
 void Reserva::cambiarFechas(string nuevaEntrada, string nuevaSalida) {
     if (!estaActiva()) throw invalid_argument("No puedes editar una reserva cancelada.");
     Fecha::diasEntre(nuevaEntrada, nuevaSalida);
@@ -59,22 +64,30 @@ void Reserva::cambiarFechas(string nuevaEntrada, string nuevaSalida) {
     fechaSalida = nuevaSalida;
 }
 
+
 void Reserva::cambiarPersonas(int nuevasPersonas) {
     if (!estaActiva()) throw invalid_argument("No puedes editar una reserva cancelada.");
     if (nuevasPersonas <= 0) throw invalid_argument("Debe haber al menos una persona.");
     personas = nuevasPersonas;
 }
 
+
+
 void Reserva::cancelar() {
     if (!estaActiva()) throw invalid_argument("Esta reserva ya estaba cancelada.");
     estado = EstadoReserva::Cancelada;
 }
+
 
 string Reserva::nombreEstado(EstadoReserva estado) {
     if (estado == EstadoReserva::Pendiente) return "Pendiente";
     if (estado == EstadoReserva::Confirmada) return "Confirmada";
     return "Cancelada";
 }
+
+
+
+
 
 // Formato del CSV: codigo,documento,habitacion,entrada,salida,personas,tarifa,estado
 string Reserva::serializar() const {
@@ -83,6 +96,8 @@ string Reserva::serializar() const {
            fechaEntrada + "," + fechaSalida + "," + to_string(personas) + "," +
            to_string(tarifaPorNoche) + "," + nombreEstado(estado);
 }
+
+
 
 Reserva Reserva::deserializar(const string& linea) {
     vector<string> c = dividirCampos(linea);
