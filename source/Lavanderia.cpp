@@ -30,7 +30,7 @@ double Lavanderia::calcularCosto(int cantidad) const {
     if (!activo) throw invalid_argument("El servicio de lavanderia esta inactivo.");
     double subtotal = precio * cantidad;
     if (urgente) {
-        subtotal += recargoUrgente * cantidad;
+		subtotal += recargoUrgente * cantidad; ///< Si es urgente, suma el recargo por cada prenda al subtotal
     }
     return subtotal;
 }

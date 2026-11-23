@@ -95,6 +95,8 @@ Usuario* iniciarSesion(const string& nombre, const string& clave) {
     return encontrado;
 }
 
+
+// Muestra todos los usuarios registrados en el sistema
 static void listarUsuarios() {
     vector<Usuario*> lista = cargarUsuarios();
     cout << "\n=== USUARIOS (" << lista.size() << ") ===\n";
@@ -107,6 +109,9 @@ static void listarUsuarios() {
     liberarUsuarios(lista);
 }
 
+
+
+// Crea un nuevo usuario y lo guarda en el archivo
 static void crearUsuarioMenu() {
     string nombre = leerTextoObligatorio("Nombre de usuario: ");
     string clave = leerTextoObligatorio("Contrasena: ");
@@ -129,6 +134,8 @@ static void crearUsuarioMenu() {
     cout << "Usuario creado y guardado.\n";
 }
 
+
+// Edita un usuario existente
 static void editarUsuarioMenu() {
     string nombre = leerTextoObligatorio("Usuario a editar: ");
     vector<Usuario*> lista = cargarUsuarios();
@@ -157,6 +164,8 @@ static void editarUsuarioMenu() {
     cout << "Usuario actualizado.\n";
 }
 
+
+// Elimina un usuario del sistema, pero no permite eliminar al propio usuario que esta logueado
 static void eliminarUsuarioMenu(const Usuario& actual) {
     string nombre = leerTextoObligatorio("Usuario a eliminar: ");
     if (nombre == actual.getNombreUsuario())
