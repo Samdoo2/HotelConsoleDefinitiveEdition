@@ -29,6 +29,8 @@ vector<Factura> cargarFacturas() {
     return lista;
 }
 
+
+// Guarda las facturas en el archivo
 static void guardarFacturas(const vector<Factura>& lista) {
     vector<string> lineas;
     for (size_t i = 0; i < lista.size(); i++)
@@ -36,6 +38,9 @@ static void guardarFacturas(const vector<Factura>& lista) {
     escribirLineas(rutaFacturas(), lineas);
 }
 
+
+
+// Crea el archivo si no existe
 void inicializarArchivoFacturas() {
     if (!existeArchivo(rutaFacturas())) {
         vector<string> vacio;
@@ -44,6 +49,9 @@ void inicializarArchivoFacturas() {
     cargarFacturas(); // valida el formato del archivo
 }
 
+
+
+// Verifica si una reserva ya tiene factura
 bool reservaTieneFactura(const string& codigoReserva) {
     vector<Factura> lista = cargarFacturas();
     for (size_t i = 0; i < lista.size(); i++)
@@ -51,8 +59,11 @@ bool reservaTieneFactura(const string& codigoReserva) {
     return false;
 }
 
+
+
 static void mostrarDetalleFactura(const Factura& f) {
     Reserva r = obtenerReserva(f.getCodigoReserva());
+
     cout << "\n===== FACTURA " << f.getCodigo() << " =====\n"
          << "Fecha de emision: " << f.getFechaEmision() << "\n"
          << "Reserva: " << r.getCodigo() << " | Huesped: " << r.getDocumentoHuesped()
@@ -70,6 +81,8 @@ static void mostrarDetalleFactura(const Factura& f) {
          << "Estado de pago: " << f.getEstadoPago() << "\n";
 }
 
+
+// Esta funcion genera la factura de una reserva
 static void generarFacturaMenu() {
     string codigoReserva = leerTextoObligatorio("Codigo de la reserva a facturar: ");
     Reserva r = obtenerReserva(codigoReserva);
@@ -91,6 +104,8 @@ static void generarFacturaMenu() {
     cout << "Factura guardada con codigo " << nueva.getCodigo() << ".\n";
 }
 
+
+// Muestra todas las facturas registradas en el sistema
 static void listarFacturas() {
     vector<Factura> lista = cargarFacturas();
     cout << "\n=== FACTURAS (" << lista.size() << ") ===\n";
@@ -126,6 +141,8 @@ static void buscarPorReservaFactura() {
     cout << "Esa reserva no tiene factura.\n";
 }
 
+
+// Esta funcion registra el pago de una factura
 static void registrarPagoMenu() {
     string codigo = leerTextoObligatorio("Codigo de la factura: ");
     vector<Factura> lista = cargarFacturas();

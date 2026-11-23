@@ -2,7 +2,7 @@
 #include <string>
 using namespace std;
 
-// Un servicio usado durante una estadia. Siempre pertenece a una reserva.
+// Un servicio usado durante una estadia. Siempre pertenece a una reserva
 class ConsumoServicio {
 protected:
     string codigo;

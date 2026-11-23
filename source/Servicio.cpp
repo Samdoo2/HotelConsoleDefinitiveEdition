@@ -46,7 +46,7 @@ void Servicio::validar() const {
 string Servicio::serializar() const {
     validar();
     return getTipoServicio() + "," + codigo + "," + nombre + "," + desc + "," +
-           to_string(precio) + "," + (activo ? "1" : "0");
+           to_string(precio) + "," + (activo ? "1" : "0"); // El ? funciona como un if comprimido
 }
 
 string Servicio::getCodigo() const { return codigo; }

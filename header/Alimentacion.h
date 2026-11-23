@@ -4,6 +4,14 @@
 #include <string>
 using namespace std;
 
+/**
+*@file Alimentacion.h
+* @brief Clase que representa un servicio de alimentacion en el hotel
+* 
+*
+*/
+
+
 // Servicio de alimentacion: se cobra por plato.
 class Alimentacion : public Servicio {
 private:

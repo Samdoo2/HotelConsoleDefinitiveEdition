@@ -31,6 +31,7 @@ void guardarHabitaciones(const vector<Habitacion>& lista) {
     escribirLineas(rutaHabitaciones(), lineas);
 }
 
+// Esta funcion crea el archivo habitaciones.csv con datos de ejemplo si no existe, o valida su formato si ya existe. 
 void inicializarArchivoHabitaciones() {
     bool vacio = true;
     if (existeArchivo(rutaHabitaciones())) vacio = leerLineas(rutaHabitaciones()).empty();
@@ -56,17 +57,24 @@ void inicializarArchivoHabitaciones() {
     }
 }
 
+
+// Muestra la habitacion con su estado actual   
 void mostrarHabitacion(const Habitacion& h, const string& estado) {
     cout << "Habitacion " << h.getCodigo() << " | " << Habitacion::nombreTipo(h.getTipo())
          << " | Capacidad " << h.getCapacidad() << " | $"
          << dinero(h.getPrecioPorNoche()) << "/noche | " << estado << "\n";
 }
 
+
+
+// Busca una habitacion por codigo y devuelve su posicion en el vector. Si no la encuentra devuelve -1
 static int buscarIndice(const vector<Habitacion>& lista, const string& codigo) {
     for (size_t i = 0; i < lista.size(); i++)
         if (lista[i].getCodigo() == codigo) return (int)i;
     return -1;
 }
+
+
 
 // Cuenta las reservas de una habitacion. Si soloActivas es true, ignora las canceladas.
 static int contarReservasDeHabitacion(const string& codigo, bool soloActivas) {
@@ -80,6 +88,8 @@ static int contarReservasDeHabitacion(const string& codigo, bool soloActivas) {
     return cantidad;
 }
 
+
+// Esta funcion solo es para elegir el tipo de la habitacion en el menu. No valida nada, solo devuelve un TipoHabitacion
 static TipoHabitacion elegirTipo() {
     int t = leerEntero("Tipo (1=Sencilla, 2=Doble, 3=Familiar, 4=Suite): ", 1, 4);
     if (t == 1) return TipoHabitacion::Sencilla;
@@ -97,6 +107,8 @@ static void listarHabitaciones() {
     cout << "Disponible = libre hoy para ocupar. Ocupada = tiene una reserva que incluye hoy.\n";
 }
 
+
+// Busca la habitacion por codigo y muestra sus datos
 static void buscarHabitacionMenu() {
     string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
     vector<Habitacion> lista = cargarHabitaciones();
@@ -105,6 +117,8 @@ static void buscarHabitacionMenu() {
     if (pos == -1) cout << "No existe esa habitacion.\n";
     else mostrarHabitacion(lista[pos], estadoActualHabitacion(lista[pos], reservas));
 }
+
+
 
 static void agregarHabitacionMenu() {
     string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
@@ -117,7 +131,7 @@ static void agregarHabitacionMenu() {
     lista.push_back(Habitacion(codigo, tipo, capacidad, precio));
     guardarHabitaciones(lista);
     cout << "Habitacion registrada.\n";
-}
+} 
 
 static void actualizarHabitacionMenu() {
     string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
@@ -141,13 +155,16 @@ static void actualizarHabitacionMenu() {
     cout << "Habitacion actualizada.\n";
 }
 
+
+
+
 static void cambiarEstadoMenu() {
     string codigo = leerTextoObligatorio("Codigo de la habitacion: ");
     vector<Habitacion> lista = cargarHabitaciones();
     int pos = buscarIndice(lista, codigo);
     if (pos == -1) throw invalid_argument("No existe esa habitacion.");
     int e = leerEntero("Estado (1=Disponible, 2=Mantenimiento, 3=Fuera de servicio): ", 1, 3);
-    if (e != 1 && contarReservasDeHabitacion(codigo, true) > 0)
+	if (e != 1 && contarReservasDeHabitacion(codigo, true) > 0)  ///< se le pasa true para que solo cuente las activas, si hay alguna activa no puede cambiar el estado
         throw invalid_argument("La habitacion tiene reservas activas. Cancelalas antes de bloquearla.");
     if (e == 1) lista[pos].cambiarEstado(EstadoHabitacion::Disponible);
     else if (e == 2) lista[pos].cambiarEstado(EstadoHabitacion::Mantenimiento);

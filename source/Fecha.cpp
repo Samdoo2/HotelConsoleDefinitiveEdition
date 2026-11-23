@@ -70,6 +70,8 @@ int Fecha::contarDias(string fecha) {
 
     return total;
 }
+
+
 int Fecha::diasEntre(string fechaEntrada, string fechaSalida) {
     if (!esValida(fechaEntrada) || !esValida(fechaSalida)) {
         throw invalid_argument("La fecha no es valida.");

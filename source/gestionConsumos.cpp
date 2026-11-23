@@ -9,12 +9,14 @@ using namespace std;
 
 static string rutaConsumos() { return rutaArchivo("consumos.csv"); }
 
+
+// Carga los consumos desde el archivo y devuelve un vector con ellos
 vector<ConsumoServicio> cargarConsumos() {
     vector<string> lineas = leerLineas(rutaConsumos());
     vector<ConsumoServicio> lista;
     for (size_t i = 0; i < lineas.size(); i++) {
         try {
-            ConsumoServicio c = ConsumoServicio::deserializar(lineas[i]);
+            ConsumoServicio c = ConsumoServicio::deserializar(lineas[i]); ///< 
             for (size_t j = 0; j < lista.size(); j++)
                 if (lista[j].getCodigo() == c.getCodigo())
                     throw invalid_argument("Codigo de consumo repetido.");
@@ -26,6 +28,8 @@ vector<ConsumoServicio> cargarConsumos() {
     return lista;
 }
 
+
+// Guarda los consumos en el archivo
 static void guardarConsumos(const vector<ConsumoServicio>& lista) {
     vector<string> lineas;
     for (size_t i = 0; i < lista.size(); i++)
@@ -35,12 +39,13 @@ static void guardarConsumos(const vector<ConsumoServicio>& lista) {
 
 void inicializarArchivoConsumos() {
     if (!existeArchivo(rutaConsumos())) {
-        vector<string> vacio;
-        escribirLineas(rutaConsumos(), vacio);
+        vector<string> vacio; 
+		escribirLineas(rutaConsumos(), vacio); ///< crea el archivo si no existe, se le pasa ese vector vacio para completar la funcion
     }
     cargarConsumos(); // valida el formato del archivo
 }
 
+// esto lee todas las lineas y compara el codigo de reserva, si coincide suma el valor total del consumo al subtotal
 double subtotalServicios(const string& codigoReserva) {
     vector<ConsumoServicio> lista = cargarConsumos();
     double total = 0;
@@ -58,6 +63,8 @@ static void mostrarConsumo(const ConsumoServicio& c) {
          << " | Total $" << dinero(c.getValorTotal()) << "\n";
 }
 
+
+// Muestra todos los consumos de una reserva, si no hay ninguno muestra un mensaje
 void mostrarConsumosDeReserva(const string& codigoReserva) {
     vector<ConsumoServicio> lista = cargarConsumos();
     int cantidad = 0;
@@ -70,7 +77,7 @@ void mostrarConsumosDeReserva(const string& codigoReserva) {
     }
     if (cantidad == 0) cout << "   (sin servicios consumidos)\n";
 }
-
+// Toda esta funcion sirve para registrar un consumo de servicio en una reserva
 static void registrarConsumoMenu() {
     string codigoReserva = leerTextoObligatorio("Codigo de la reserva: ");
     Reserva r = obtenerReserva(codigoReserva); // si no existe, lanza error: no hay cobros sin reserva
@@ -100,6 +107,8 @@ static void registrarConsumoMenu() {
     cout << "Consumo guardado con codigo " << nuevo.getCodigo() << ".\n";
 }
 
+
+// Muestra todos los consumos de una reserva
 static void verConsumosDeUnaReserva() {
     string codigoReserva = leerTextoObligatorio("Codigo de la reserva: ");
     obtenerReserva(codigoReserva); // verifica que exista
@@ -108,12 +117,18 @@ static void verConsumosDeUnaReserva() {
     cout << "Subtotal servicios: $" << dinero(subtotalServicios(codigoReserva)) << "\n";
 }
 
+
+
+// Muestra todos los consumos registrados en el sistema
 static void verTodosLosConsumos() {
     vector<ConsumoServicio> lista = cargarConsumos();
     cout << "\n=== CONSUMOS (" << lista.size() << ") ===\n";
     for (size_t i = 0; i < lista.size(); i++) mostrarConsumo(lista[i]);
 }
 
+
+
+// el menu
 void menuConsumos() {
     int opcion;
     do {

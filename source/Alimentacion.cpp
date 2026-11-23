@@ -34,6 +34,8 @@ string Alimentacion::serializar() const {
     return Servicio::serializar() + "," + tipoComida;
 }
 
+
+// Lo que hace esta funcion es leer una linea de texto y convertirla en un objeto Alimentacion
 void Alimentacion::deserializar(const string& linea) {
     stringstream ss(linea);
     string tipo, cod, nom, d, precStr, actStr, comida;

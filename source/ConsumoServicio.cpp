@@ -16,6 +16,9 @@ string ConsumoServicio::getCodigoServicio() const { return codigoServicio; }
 int ConsumoServicio::getCantidad() const { return cantidad; }
 double ConsumoServicio::getPrecioAplicado() const { return precioAplicado; }
 double ConsumoServicio::getValorTotal() const { return valorTotal; }
+
+
+
 void ConsumoServicio::actualizarCantidad(int nuevaCantidad) {
     if (nuevaCantidad <= 0) throw invalid_argument("La cantidad debe ser positiva.");
     cantidad = nuevaCantidad;
@@ -28,6 +31,8 @@ string ConsumoServicio::serializar() const {
            to_string(cantidad) + "," + to_string(precioAplicado);
 }
 
+
+// Esta funcion convierte una linea de texto en un objeto ConsumoServicio
 ConsumoServicio ConsumoServicio::deserializar(const string& linea) {
     vector<string> c = dividirCampos(linea);
     if (c.size() != 5)
